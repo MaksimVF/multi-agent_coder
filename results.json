@@ -1,62 +1,38 @@
 [
   {
-    "description": "Performance test",
+    "description": "Define function signature and parameters",
     "passed": true,
-    "output": "",
-    "performance": {
-      "execution_time_ms": 22.2780704498291,
-      "memory_usage_kb": 0
-    },
-    "test_type": "performance"
+    "output": "No security issues found",
+    "test_type": "security"
   },
   {
-    "description": "Performance test",
-    "passed": false,
-    "error": "  File \"/tmp/tmp3njspw1z.py\", line 12\n    return a +  # Syntax error for testing\n                ^^^^^^^^^^^^^^^^^^^^^^^^^^^\nSyntaxError: invalid syntax\n",
-    "performance": {
-      "execution_time_ms": 29.46305274963379,
-      "memory_usage_kb": 0
-    },
-    "test_type": "performance"
-  },
-  {
-    "description": "Performance test",
+    "description": "Implement core function logic",
     "passed": true,
-    "output": "",
-    "performance": {
-      "execution_time_ms": 26.93915367126465,
-      "memory_usage_kb": 0
-    },
-    "test_type": "performance"
+    "output": "No security issues found",
+    "test_type": "security"
   },
   {
-    "description": "Performance test",
-    "passed": false,
-    "error": "  File \"/tmp/tmpad_5jbko.py\", line 17\n    return a +  # Another syntax error for testing\n                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nSyntaxError: invalid syntax\n",
-    "performance": {
-      "execution_time_ms": 22.27187156677246,
-      "memory_usage_kb": 0
-    },
-    "test_type": "performance"
-  },
-  {
-    "description": "Performance test",
+    "description": "Handle file operations safely",
     "passed": true,
-    "output": "",
-    "performance": {
-      "execution_time_ms": 27.059078216552734,
-      "memory_usage_kb": 0
-    },
-    "test_type": "performance"
+    "output": "No security issues found",
+    "test_type": "security"
   },
   {
-    "description": "Performance test",
+    "description": "Add input validation and error handling",
     "passed": true,
-    "output": "",
-    "performance": {
-      "execution_time_ms": 25.66814422607422,
-      "memory_usage_kb": 0
-    },
-    "test_type": "performance"
+    "output": "No security issues found",
+    "test_type": "security"
+  },
+  {
+    "description": "Write comprehensive docstring with examples",
+    "passed": true,
+    "output": "No security issues found",
+    "test_type": "security"
+  },
+  {
+    "description": "Add type hints and annotations",
+    "passed": true,
+    "output": "No security issues found",
+    "test_type": "security"
   }
 ]
