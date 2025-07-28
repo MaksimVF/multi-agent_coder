@@ -1,4 +1,5 @@
 
+
 # Multi-Agent Coder
 
 A multi-agent system for coding tasks with three agents: Analyst, Developer, and Tester.
@@ -6,8 +7,10 @@ A multi-agent system for coding tasks with three agents: Analyst, Developer, and
 ## Features
 
 - **Analyst**: Breaks down tasks into subtasks
-- **Developer**: Writes code for each subtask
-- **Tester**: Tests the code and provides feedback
+- **Developer**: Writes code for each subtask in multiple languages
+- **Tester**: Tests the code and provides feedback in the appropriate language
+- **Feedback Loop**: Automatically fixes failed tests (up to 2 retries)
+- **Multi-language Support**: Python, JavaScript, Java, C#
 - Uses asyncio for parallel execution
 - Simple CLI interface
 
@@ -26,10 +29,20 @@ A multi-agent system for coding tasks with three agents: Analyst, Developer, and
 
 ## Usage
 
-Run the system with a task description:
+Run the system with a task description and optional language:
 
 ```bash
+# Default (Python)
 python main.py --task "Write a function to add two numbers"
+
+# JavaScript
+python main.py --task "Write a function to add two numbers" --language javascript
+
+# Java
+python main.py --task "Write a function to add two numbers" --language java
+
+# C#
+python main.py --task "Write a function to add two numbers" --language csharp
 ```
 
 Example output:
@@ -43,7 +56,7 @@ Identified 4 subtasks:
   - Add input validation
   - Write docstring
 
-💻 Developer is working on the code...
+💻 Developer is working on the code (python)...
 
 🧪 Tester is testing the code...
 ✅ Test passed for code: Define function signature
@@ -62,16 +75,23 @@ Identified 4 subtasks:
 
 ## Architecture
 
-- `main.py`: Entry point with CLI interface
+- `main.py`: Entry point with CLI interface and language support
 - `analyst.py`: Analyst agent implementation
-- `developer.py`: Developer agent implementation
-- `tester.py`: Tester agent implementation
+- `developer.py`: Developer agent with multi-language code generation
+- `tester.py`: Tester agent with multi-language testing capabilities
+
+## Supported Languages
+
+- **Python**: Tested with python command
+- **JavaScript**: Tested with node command
+- **Java**: Requires javac and java commands (compilation + execution)
+- **C#**: Requires dotnet command (basic support)
 
 ## Future Improvements
 
 - Add more sophisticated task analysis
-- Implement feedback loop for failed tests
-- Add support for different programming languages
+- Enhance feedback loop for non-Python languages
+- Improve Java and C# testing support
 - Integrate with version control systems
 - Add more comprehensive testing capabilities
 

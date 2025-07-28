@@ -10,7 +10,7 @@ from analyst import Analyst
 from developer import Developer
 from tester import Tester
 
-async def main(task_description):
+async def main(task_description, language="python"):
     # Create message queue
     message_queue = []
 
@@ -29,10 +29,10 @@ async def main(task_description):
     })
 
     # Developer writes code for each subtask
-    print("\n💻 Developer is working on the code...")
+    print(f"\n💻 Developer is working on the code ({language})...")
     all_code = []
     for subtask in subtasks:
-        code = developer.develop_code(subtask)
+        code = developer.develop_code(subtask, language)
         all_code.append(code)
         message_queue.append({
             "from": "developer",
@@ -47,7 +47,7 @@ async def main(task_description):
 
     # First round of testing
     for code in all_code:
-        result = tester.test_code(code)
+        result = tester.test_code(code, language)
         test_results.append(result)
         if not result["passed"]:
             print(f"❌ Test failed for code: {code['description']}")
@@ -76,9 +76,9 @@ async def main(task_description):
         for code, error in failed_tests:
             print(f"🛠️  Fixing: {code['description']}")
             # Developer fixes the code
-            fixed_code = developer.fix_code(code, error)
+            fixed_code = developer.fix_code(code, error, language)
             # Test the fixed code
-            result = tester.test_code(fixed_code)
+            result = tester.test_code(fixed_code, language)
             if result["passed"]:
                 print(f"✅ Fixed: {fixed_code['description']}")
                 # Replace the old result with the new one
@@ -105,10 +105,11 @@ async def main(task_description):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Multi-Agent Coder")
     parser.add_argument("--task", required=True, help="Description of the coding task")
+    parser.add_argument("--language", choices=["python", "javascript", "java", "csharp"], default="python", help="Programming language to use")
     args = parser.parse_args()
 
     # Run the main function
-    results = asyncio.run(main(args.task))
+    results = asyncio.run(main(args.task, args.language))
 
     # Save results to a file
     output_file = Path("results.json")
