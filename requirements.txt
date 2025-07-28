@@ -1,0 +1,3 @@
+
+# Multi-Agent Coder Requirements
+# No external dependencies needed for basic functionality
