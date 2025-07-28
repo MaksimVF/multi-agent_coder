@@ -15,153 +15,91 @@ from tester import Tester
 from optimizer import Optimizer
 from researcher import Researcher
 from vcs_manager import VCSManager
+from agent_workflow import AgentWorkflow
 
 async def main(task_description, language="python"):
-    # Create message queue
-    message_queue = []
+    """Main function using LLM-powered agents and LangGraph workflow."""
+    print("🚀 Starting Multi-Agent Coder with LLM Intelligence")
 
-    # Create agents
-    analyst = Analyst()
-    developer = Developer()
+    # Create LLM-powered agents
+    analyst = Analyst(temperature=0.5)
+    developer = Developer(temperature=0.7)
     tester = Tester()
     researcher = Researcher()
     optimizer = Optimizer()
     optimizer.researcher = researcher  # Connect optimizer to researcher
 
-    # Analyst analyzes the task
-    print("🔍 Analyst is analyzing the task...")
-    subtasks = analyst.analyze_task(task_description)
-    message_queue.append({
-        "from": "analyst",
-        "to": "developer",
-        "content": subtasks
-    })
+    # Create agent workflow
+    workflow = AgentWorkflow()
+    workflow.register_agent("analyst", analyst)
+    workflow.register_agent("developer", developer)
+    workflow.register_agent("tester", tester)
+    workflow.register_agent("optimizer", optimizer)
 
-    # Developer writes code for each subtask
-    print(f"\n💻 Developer is working on the code ({language})...")
-    all_code = []
-    for subtask in subtasks:
-        code = developer.develop_code(subtask, language)
-        all_code.append(code)
-        message_queue.append({
-            "from": "developer",
-            "to": "tester",
-            "content": code
-        })
+    # Define workflow edges
+    workflow.add_edge("analyst", "developer")
+    workflow.add_edge("developer", "tester")
+    workflow.add_edge("tester", "optimizer")
 
-    # Tester tests the code
-    print("\n🧪 Tester is testing the code...")
-    test_results = []
-    failed_tests = []
-
-    # First round of testing
-    for code in all_code:
-        result = await tester.test_code(code, subtask, language, args.test_type)
-        test_results.append(result)
-        if not result["passed"]:
-            print(f"❌ Test failed for code: {code['description']}")
-            print(f"Error: {result['error']}")
-            failed_tests.append((code, result["error"]))
-            # Send back to developer for fixes
-            message_queue.append({
-                "from": "tester",
-                "to": "developer",
-                "content": {
-                    "code": code,
-                    "error": result["error"]
-                }
-            })
-        else:
-            print(f"✅ Test passed for code: {code['description']}")
-
-    # Feedback loop for failed tests
-    max_retries = 2
-    retry_count = 0
-
-    while failed_tests and retry_count < max_retries:
-        print(f"\n🔄 Retry attempt {retry_count + 1}...")
-        new_failed_tests = []
-
-        for code, error in failed_tests:
-            print(f"🛠️  Fixing: {code['description']}")
-            # Developer fixes the code
-            fixed_code = developer.fix_code(code, error, language)
-            # Test the fixed code
-            result = await tester.test_code(fixed_code, subtask, language, args.test_type)
-            if result["passed"]:
-                print(f"✅ Fixed: {fixed_code['description']}")
-                # Replace the old result with the new one
-                for i, old_result in enumerate(test_results):
-                    if old_result["description"] == code["description"]:
-                        test_results[i] = result
-                        break
-            else:
-                print(f"❌ Still failing: {fixed_code['description']}")
-                print(f"Error: {result['error']}")
-                new_failed_tests.append((fixed_code, result["error"]))
-
-        failed_tests = new_failed_tests
-        retry_count += 1
-
-    # Final results
-    print("\n📋 Final Results:")
-    for i, result in enumerate(test_results, 1):
-        status = "✅ Passed" if result["passed"] else "❌ Failed"
-        print(f"{i}. {status}: {result['description']} ({result.get('test_type', 'basic')})")
-
-        # Print additional metrics based on test type
-        if "performance" in result:
-            print(f"   📊 Performance: {result['performance']['execution_time_ms']:.2f} ms")
-            if "memory_usage_kb" in result['performance']:
-                print(f"   📊 Memory Usage: {result['performance']['memory_usage_kb']:.2f} KB")
-
-        if "coverage" in result:
-            print(f"   📊 Coverage: {result['coverage']['percentage']:.1f}% "
-                  f"({result['coverage']['covered_lines']}/{result['coverage']['total_lines']} lines)")
-
-        if "security_issues" in result:
-            print(f"   🔒 Security Issues: {len(result['security_issues'])} found")
-            for issue in result['security_issues']:
-                print(f"      - {issue}")
-
-        # Print error details if failed
-        if not result["passed"]:
-            print(f"   🔍 Error: {result['error']}")
-            if "traceback" in result:
-                print(f"   🔍 Traceback: {result['traceback']}")
-
-    # Optimization phase
-    print("\n🔧 Optimizer is analyzing and optimizing the results...")
-
-    # Prepare data for optimizer
-    final_code = {
-        "code": "\n\n".join([code["code"] for code in all_code]),
-        "description": task_description,
-        "language": language
+    # Prepare initial data for workflow
+    initial_data = {
+        "task_description": task_description,
+        "language": language,
+        "test_type": args.test_type
     }
 
-    # Run optimization
-    optimization_result = await optimizer.analyze_and_optimize(
-        task_description,
-        final_code,
-        test_results,
-        language
-    )
+    # Execute the workflow
+    print("\n🔄 Starting agent workflow...")
+    workflow_result = await workflow.execute_workflow("analyst", initial_data)
 
-    if optimization_result["success"]:
-        print("\n💡 Optimization Results:")
-        print(f"   📊 Analysis: {len(optimization_result['suggestions'])} suggestions generated")
+    if workflow_result["status"] == "completed":
+        print("\n✅ Workflow completed successfully!")
 
-        # Print top suggestions
-        for i, suggestion in enumerate(optimization_result['suggestions'][:3], 1):
-            print(f"   {i}. {suggestion['type']}: {suggestion['details']}")
+        # Extract final results
+        final_results = workflow_result["data"]
+        test_results = final_results.get("test_results", [])
+        optimization_result = final_results.get("optimization_result", {})
 
-        # Save optimization results
-        optimization_result["test_results"] = test_results
-        return optimization_result
+        # Print final results
+        print("\n📋 Final Results:")
+        for i, result in enumerate(test_results, 1):
+            status = "✅ Passed" if result["passed"] else "❌ Failed"
+            print(f"{i}. {status}: {result['description']} ({result.get('test_type', 'basic')})")
+
+            # Print additional metrics based on test type
+            if "performance" in result:
+                print(f"   📊 Performance: {result['performance']['execution_time_ms']:.2f} ms")
+                if "memory_usage_kb" in result['performance']:
+                    print(f"   📊 Memory Usage: {result['performance']['memory_usage_kb']:.2f} KB")
+
+            if "coverage" in result:
+                print(f"   📊 Coverage: {result['coverage']['percentage']:.1f}% "
+                      f"({result['coverage']['covered_lines']}/{result['coverage']['total_lines']} lines)")
+
+            if "security_issues" in result:
+                print(f"   🔒 Security Issues: {len(result['security_issues'])} found")
+                for issue in result['security_issues']:
+                    print(f"      - {issue}")
+
+            # Print error details if failed
+            if not result["passed"]:
+                print(f"   🔍 Error: {result['error']}")
+                if "traceback" in result:
+                    print(f"   🔍 Traceback: {result['traceback']}")
+
+        # Print optimization results
+        if optimization_result and optimization_result.get("success"):
+            print("\n💡 Optimization Results:")
+            print(f"   📊 Analysis: {len(optimization_result['suggestions'])} suggestions generated")
+
+            # Print top suggestions
+            for i, suggestion in enumerate(optimization_result['suggestions'][:3], 1):
+                print(f"   {i}. {suggestion['type']}: {suggestion['details']}")
+
+        return final_results
     else:
-        print(f"   ⚠️  Optimization failed: {optimization_result['error']}")
-        return test_results
+        print(f"❌ Workflow failed: {workflow_result.get('error', 'Unknown error')}")
+        return {"error": workflow_result.get('error', 'Workflow failed')}
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Multi-Agent Coder")

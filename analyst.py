@@ -1,31 +1,174 @@
 
 
 
-class Analyst:
-    def analyze_task(self, task_description):
-        """Analyze a task and break it into subtasks."""
-        print(f"Analyzing task: {task_description}")
+import json
+import re
+from typing import List, Dict, Any
+from base_llm_agent import BaseLLMAgent
 
-        # Enhanced analysis with more sophisticated task breakdown
-        task_lower = task_description.lower()
+class Analyst(BaseLLMAgent):
+    """LLM-powered Analyst agent for task analysis."""
 
-        # Check for specific task types
-        if any(keyword in task_lower for keyword in ["function", "method", "procedure", "routine"]):
-            subtasks = self._analyze_function_task(task_lower)
-        elif any(keyword in task_lower for keyword in ["class", "object", "structure", "component"]):
-            subtasks = self._analyze_class_task(task_lower)
-        elif any(keyword in task_lower for keyword in ["algorithm", "logic", "process", "workflow"]):
-            subtasks = self._analyze_algorithm_task(task_lower)
-        elif any(keyword in task_lower for keyword in ["api", "interface", "service", "endpoint"]):
-            subtasks = self._analyze_api_task(task_lower)
-        else:
-            subtasks = self._analyze_generic_task(task_lower)
+    def __init__(self, model: str = "gpt-4o", temperature: float = 0.5):
+        """
+        Initialize the LLM-powered Analyst.
 
-        print(f"Identified {len(subtasks)} subtasks:")
-        for subtask in subtasks:
-            print(f"  - {subtask['description']}")
+        Args:
+            model: LLM model to use
+            temperature: Creativity level for LLM
+        """
+        super().__init__(model=model, temperature=temperature)
+
+        # Analyst-specific configuration
+        self.system_message = (
+            "You are an expert software analyst. Your job is to analyze coding tasks, "
+            "break them down into subtasks, and provide insights about requirements and code quality."
+        )
+
+    async def analyze_task(self, task_description: str) -> List[Dict[str, str]]:
+        """Analyze a task and break it down into subtasks using LLM."""
+        print(f"🔍 Analyzing task with LLM: {task_description}")
+
+        prompt = f"""
+        Analyze the following coding task and break it down into logical subtasks:
+
+        Task: {task_description}
+
+        Provide the subtasks as a JSON list with each subtask having a 'description' field.
+        Consider the programming language, main functionality, and any specific requirements.
+        """
+
+        # Call LLM to analyze the task
+        response = await self.generate_response(prompt, self.system_message)
+
+        try:
+            # Try to parse the response as JSON
+            subtasks = json.loads(response)
+            print(f"📋 Identified {len(subtasks)} subtasks from LLM:")
+            for subtask in subtasks:
+                print(f"  - {subtask.get('description', 'Unknown')}")
+            return subtasks
+        except json.JSONDecodeError:
+            print("⚠️  LLM response not valid JSON, falling back to manual parsing")
+            # Fallback: parse the response manually
+            return self._parse_subtasks_response(response)
+
+    def _parse_subtasks_response(self, response: str) -> List[Dict[str, str]]:
+        """Parse subtasks from LLM response when it's not valid JSON."""
+        subtasks = []
+        lines = response.split('\n')
+
+        for line in lines:
+            line = line.strip()
+            if line and ('-' in line or '•' in line or '*' in line or line.strip().isdigit()):
+                # Extract subtask description
+                description = line.split('-', 1)[-1].split('•', 1)[-1].split('*', 1)[-1].strip()
+                description = re.sub(r'^\d+\.\s*', '', description)  # Remove numbering
+                if description:
+                    subtasks.append({"description": description})
+
+        # Add default subtasks if none were found
+        if not subtasks:
+            print("⚠️  No subtasks found in LLM response, using fallback")
+            subtasks = [
+                {"description": "function signature"},
+                {"description": "function logic"},
+                {"description": "input validation"},
+                {"description": "unit tests"}
+            ]
 
         return subtasks
+
+    async def analyze_requirements(self, requirements: str) -> Dict[str, Any]:
+        """Analyze requirements using LLM."""
+        prompt = f"""
+        Analyze the following software requirements and extract key information:
+
+        Requirements: {requirements}
+
+        Provide the analysis as a JSON object with these fields:
+        - language: The programming language
+        - main_functionality: The main feature or function to implement
+        - constraints: List of any constraints or requirements
+        - dependencies: List of any dependencies or libraries needed
+        """
+
+        response = await self.generate_response(prompt, self.system_message)
+
+        try:
+            analysis = json.loads(response)
+            return analysis
+        except json.JSONDecodeError:
+            # Fallback to simple analysis
+            return self._simple_requirements_analysis(requirements)
+
+    def _simple_requirements_analysis(self, requirements: str) -> Dict[str, Any]:
+        """Fallback requirements analysis when LLM response is invalid."""
+        analysis = {
+            "language": "unknown",
+            "main_functionality": "unknown",
+            "constraints": [],
+            "dependencies": []
+        }
+
+        # Try to identify language
+        requirements_lower = requirements.lower()
+        if "python" in requirements_lower:
+            analysis["language"] = "python"
+        elif "javascript" in requirements_lower or "js" in requirements_lower:
+            analysis["language"] = "javascript"
+        elif "java" in requirements_lower:
+            analysis["language"] = "java"
+        elif "c#" in requirements_lower or "csharp" in requirements_lower:
+            analysis["language"] = "csharp"
+
+        return analysis
+
+    async def analyze_code_quality(self, code: str) -> Dict[str, Any]:
+        """Analyze code quality using LLM."""
+        prompt = f"""
+        Analyze the following code for quality, readability, maintainability, and performance.
+        Provide suggestions for improvement.
+
+        Code:
+        {code}
+
+        Provide the analysis as a JSON object with these fields:
+        - readability: 'good', 'average', or 'needs improvement'
+        - maintainability: 'good', 'average', or 'needs improvement'
+        - performance: 'good', 'average', or 'needs improvement'
+        - suggestions: List of improvement suggestions
+        """
+
+        response = await self.generate_response(prompt, self.system_message)
+
+        try:
+            analysis = json.loads(response)
+            return analysis
+        except json.JSONDecodeError:
+            # Fallback to simple analysis
+            return self._simple_code_quality_analysis(code)
+
+    def _simple_code_quality_analysis(self, code: str) -> Dict[str, Any]:
+        """Fallback code quality analysis."""
+        analysis = {
+            "readability": "average",
+            "maintainability": "average",
+            "performance": "average",
+            "suggestions": ["Consider adding more comments", "Review variable naming"]
+        }
+        return analysis
+
+    async def process(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Process incoming data for the workflow."""
+        task_description = data.get("task_description", "")
+
+        if task_description:
+            subtasks = await self.analyze_task(task_description)
+            return {"subtasks": subtasks}
+        else:
+            return {"error": "No task description provided"}
+
 
     def _analyze_function_task(self, task_description):
         """Analyze a function-related task."""

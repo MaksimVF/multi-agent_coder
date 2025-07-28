@@ -7,9 +7,28 @@ from bs4 import BeautifulSoup
 import json
 import os
 from pathlib import Path
+from typing import Dict, Any, List
+from base_llm_agent import BaseLLMAgent
 
-class Researcher:
-    def __init__(self):
+class Researcher(BaseLLMAgent):
+    """LLM-powered Researcher agent for web research and documentation."""
+
+    def __init__(self, model: str = "gpt-4o", temperature: float = 0.7):
+        """
+        Initialize the LLM-powered Researcher.
+
+        Args:
+            model: LLM model to use
+            temperature: Creativity level for LLM
+        """
+        super().__init__(model=model, temperature=temperature)
+
+        # Researcher-specific configuration
+        self.system_message = (
+            "You are an expert software researcher. Your job is to find relevant information, "
+            "documentation, and best practices for software development tasks."
+        )
+
         self.cache_dir = Path("research_cache")
         self.cache_dir.mkdir(exist_ok=True)
         self.current_date = datetime.datetime(2025, 7, 28, 13, 30)  # Fixed date as per requirements
@@ -342,26 +361,19 @@ class Researcher:
         except Exception as e:
             return [{"error": str(e)}]
 
-    async def handle_request(self, request):
-        """Handle research requests from other agents."""
-        try:
-            request_type = request.get("type", "general")
-            query = request.get("query", "")
-            language = request.get("language", "python")
-            topic = request.get("topic", "")
-
-            if request_type == "documentation":
-                return await self.fetch_documentation(query)
-            elif request_type == "optimization":
-                return await self.research_optimizations(language, topic)
-            elif request_type == "problem":
-                return await self.research_problem(query)
-            elif request_type == "examples":
-                return await self.get_code_examples(language, topic)
+    async def process(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Process incoming data for the workflow."""
+        if "query" in data:
+            if "optimization" in data.get("query", "").lower():
+                # Handle optimization research
+                language = data.get("language", "python")
+                topic = data.get("query", "")
+                optimizations = await self.research_optimizations(language, topic)
+                return {"optimizations": optimizations}
             else:
-                # General web search
-                return await self.search_web(query)
-
-        except Exception as e:
-            return {"error": str(e)}
+                # Handle general research
+                search_results = await self.search_web(data["query"])
+                return {"search_results": search_results}
+        else:
+            return {"error": "No query provided"}
 
