@@ -1,32 +1,44 @@
 [
   {
     "description": "Define function signature and parameters",
-    "passed": true,
-    "output": ""
+    "passed": false,
+    "error": "FF\n======================================================================\nFAIL: test_data_flow (__main__.TestIntegration.test_data_flow)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/tmp/tmp6kkeqmi0_integration.py\", line 55, in test_data_flow\n    from __main__ import add, subtract, multiply, divide\nImportError: cannot import name 'add' from '__main__' (/tmp/tmp6kkeqmi0_integration.py)\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/tmp/tmp6kkeqmi0_integration.py\", line 67, in test_data_flow\n    self.fail(f\"Data flow test failed with exception: {e}\")\nAssertionError: Data flow test failed with exception: cannot import name 'add' from '__main__' (/tmp/tmp6kkeqmi0_integration.py)\n\n======================================================================\nFAIL: test_module_integration (__main__.TestIntegration.test_module_integration)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/tmp/tmp6kkeqmi0_integration.py\", line 35, in test_module_integration\n    from __main__ import add, subtract, multiply, divide\nImportError: cannot import name 'add' from '__main__' (/tmp/tmp6kkeqmi0_integration.py)\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/tmp/tmp6kkeqmi0_integration.py\", line 49, in test_module_integration\n    self.fail(f\"Integration test failed with exception: {e}\")\nAssertionError: Integration test failed with exception: cannot import name 'add' from '__main__' (/tmp/tmp6kkeqmi0_integration.py)\n\n----------------------------------------------------------------------\nRan 2 tests in 0.001s\n\nFAILED (failures=2)\n",
+    "test_type": "integration",
+    "stdout": ""
   },
   {
     "description": "Implement core function logic",
-    "passed": true,
-    "output": ""
+    "passed": false,
+    "error": "  File \"/tmp/tmpkl8wm745_integration.py\", line 19\n    return a +  # Syntax error for testing\n                ^^^^^^^^^^^^^^^^^^^^^^^^^^^\nSyntaxError: invalid syntax\n",
+    "test_type": "integration",
+    "stdout": ""
   },
   {
     "description": "Handle file operations safely",
-    "passed": true,
-    "output": ""
+    "passed": false,
+    "error": "FF\n======================================================================\nFAIL: test_data_flow (__main__.TestIntegration.test_data_flow)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/tmp/tmpisbar13t_integration.py\", line 49, in test_data_flow\n    from __main__ import add, subtract, multiply, divide\nImportError: cannot import name 'add' from '__main__' (/tmp/tmpisbar13t_integration.py)\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/tmp/tmpisbar13t_integration.py\", line 61, in test_data_flow\n    self.fail(f\"Data flow test failed with exception: {e}\")\nAssertionError: Data flow test failed with exception: cannot import name 'add' from '__main__' (/tmp/tmpisbar13t_integration.py)\n\n======================================================================\nFAIL: test_module_integration (__main__.TestIntegration.test_module_integration)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/tmp/tmpisbar13t_integration.py\", line 29, in test_module_integration\n    from __main__ import add, subtract, multiply, divide\nImportError: cannot import name 'add' from '__main__' (/tmp/tmpisbar13t_integration.py)\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/tmp/tmpisbar13t_integration.py\", line 43, in test_module_integration\n    self.fail(f\"Integration test failed with exception: {e}\")\nAssertionError: Integration test failed with exception: cannot import name 'add' from '__main__' (/tmp/tmpisbar13t_integration.py)\n\n----------------------------------------------------------------------\nRan 2 tests in 0.001s\n\nFAILED (failures=2)\n",
+    "test_type": "integration",
+    "stdout": ""
   },
   {
     "description": "Add input validation and error handling",
-    "passed": true,
-    "output": ""
+    "passed": false,
+    "error": "  File \"/tmp/tmp1ywcmibk_integration.py\", line 24\n    return a +  # Another syntax error for testing\n                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nSyntaxError: invalid syntax\n",
+    "test_type": "integration",
+    "stdout": ""
   },
   {
     "description": "Write comprehensive docstring with examples",
-    "passed": true,
-    "output": ""
+    "passed": false,
+    "error": "FF\n======================================================================\nFAIL: test_data_flow (__main__.TestIntegration.test_data_flow)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/tmp/tmpy9tcy5je_integration.py\", line 69, in test_data_flow\n    from __main__ import add, subtract, multiply, divide\nImportError: cannot import name 'add' from '__main__' (/tmp/tmpy9tcy5je_integration.py)\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/tmp/tmpy9tcy5je_integration.py\", line 81, in test_data_flow\n    self.fail(f\"Data flow test failed with exception: {e}\")\nAssertionError: Data flow test failed with exception: cannot import name 'add' from '__main__' (/tmp/tmpy9tcy5je_integration.py)\n\n======================================================================\nFAIL: test_module_integration (__main__.TestIntegration.test_module_integration)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/tmp/tmpy9tcy5je_integration.py\", line 49, in test_module_integration\n    from __main__ import add, subtract, multiply, divide\nImportError: cannot import name 'add' from '__main__' (/tmp/tmpy9tcy5je_integration.py)\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/tmp/tmpy9tcy5je_integration.py\", line 63, in test_module_integration\n    self.fail(f\"Integration test failed with exception: {e}\")\nAssertionError: Integration test failed with exception: cannot import name 'add' from '__main__' (/tmp/tmpy9tcy5je_integration.py)\n\n----------------------------------------------------------------------\nRan 2 tests in 0.001s\n\nFAILED (failures=2)\n",
+    "test_type": "integration",
+    "stdout": ""
   },
   {
     "description": "Add type hints and annotations",
-    "passed": true,
-    "output": ""
+    "passed": false,
+    "error": "FF\n======================================================================\nFAIL: test_data_flow (__main__.TestIntegration.test_data_flow)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/tmp/tmpdhm56iif_integration.py\", line 49, in test_data_flow\n    from __main__ import add, subtract, multiply, divide\nImportError: cannot import name 'add' from '__main__' (/tmp/tmpdhm56iif_integration.py)\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/tmp/tmpdhm56iif_integration.py\", line 61, in test_data_flow\n    self.fail(f\"Data flow test failed with exception: {e}\")\nAssertionError: Data flow test failed with exception: cannot import name 'add' from '__main__' (/tmp/tmpdhm56iif_integration.py)\n\n======================================================================\nFAIL: test_module_integration (__main__.TestIntegration.test_module_integration)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/tmp/tmpdhm56iif_integration.py\", line 29, in test_module_integration\n    from __main__ import add, subtract, multiply, divide\nImportError: cannot import name 'add' from '__main__' (/tmp/tmpdhm56iif_integration.py)\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/tmp/tmpdhm56iif_integration.py\", line 43, in test_module_integration\n    self.fail(f\"Integration test failed with exception: {e}\")\nAssertionError: Integration test failed with exception: cannot import name 'add' from '__main__' (/tmp/tmpdhm56iif_integration.py)\n\n----------------------------------------------------------------------\nRan 2 tests in 0.001s\n\nFAILED (failures=2)\n",
+    "test_type": "integration",
+    "stdout": ""
   }
 ]
