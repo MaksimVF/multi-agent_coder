@@ -2,83 +2,119 @@
 
 
 
-class Developer:
-    def develop_code(self, subtask, language="python"):
-        """Develop code for a given subtask."""
-        code = {
-            "description": subtask["description"],
-            "code": self._generate_code(subtask, language),
-            "language": language
-        }
-        return code
+import json
+from typing import Dict, Any
+from base_llm_agent import BaseLLMAgent
 
-    def fix_code(self, code, error, language="python"):
-        """Fix code based on test error."""
-        description = code["description"]
-        original_code = code["code"]
+class Developer(BaseLLMAgent):
+    """LLM-powered Developer agent for code generation and fixing."""
 
-        print(f"Attempting to fix error: {error}")
+    def __init__(self, model: str = "gpt-4o", temperature: float = 0.7):
+        """
+        Initialize the LLM-powered Developer.
 
-        # Enhanced fix logic
-        if language == "python":
-            if "SyntaxError" in error:
-                if "return a +" in error:
-                    # Fix the syntax error we intentionally introduced
-                    if "Syntax error for testing" in original_code:
-                        fixed_code = original_code.replace("return a +  # Syntax error for testing", "return a + b")
-                        return {
-                            "description": description,
-                            "code": fixed_code,
-                            "language": language
-                        }
-                    elif "Another syntax error for testing" in original_code:
-                        fixed_code = original_code.replace("return a +  # Another syntax error for testing", "return a + b")
-                        return {
-                            "description": description,
-                            "code": fixed_code,
-                            "language": language
-                        }
-                elif "invalid syntax" in error:
-                    # Try to fix common syntax errors by adding missing parts
-                    if original_code.count("return") > original_code.count("b"):
-                        fixed_code = original_code.replace("return a +", "return a + b")
-                        return {
-                            "description": description,
-                            "code": fixed_code,
-                            "language": language
-                        }
-                # Fallback - add a comment to make it syntactically valid
-                fixed_code = original_code + "\n# Fixed syntax error"
-                return {
-                    "description": description,
-                    "code": fixed_code,
-                    "language": language
-                }
-            elif "NameError" in error:
-                # Fix missing variable definitions
-                if "not defined" in error:
-                    fixed_code = "b = 0\n" + original_code
+        Args:
+            model: LLM model to use
+            temperature: Creativity level for LLM
+        """
+        super().__init__(model=model, temperature=temperature)
+
+        # Developer-specific configuration
+        self.system_message = (
+            "You are an expert software developer. Your job is to generate high-quality code "
+            "based on task descriptions, fix coding errors, and implement best practices."
+        )
+
+    async def develop_code(self, subtask: Dict[str, Any], language: str = "python") -> Dict[str, Any]:
+        """Develop code for a given subtask using LLM."""
+        description = subtask.get("description", "")
+
+        prompt = f"""
+        Generate {language} code for the following task:
+
+        Task: {description}
+
+        Provide the code as a JSON object with these fields:
+        - description: Brief description of what the code does
+        - code: The actual code implementation
+        - language: The programming language used
+        """
+
+        print(f"💻 Generating {language} code for: {description}")
+
+        response = await self.generate_response(prompt, self.system_message)
+
+        try:
+            code_data = json.loads(response)
+            return code_data
+        except json.JSONDecodeError:
+            # Fallback: extract code from response
+            return {
+                "description": description,
+                "code": response,
+                "language": language
+            }
+
+    async def fix_code(self, code: Dict[str, Any], error: str, language: str = "python") -> Dict[str, Any]:
+        """Fix code based on test error using LLM."""
+        description = code.get("description", "")
+        original_code = code.get("code", "")
+
+        print(f"🛠️  Fixing code error with LLM: {error}")
+
+        prompt = f"""
+        Fix the following {language} code that has an error. Provide the corrected code.
+
+        Original code:
+        {original_code}
+
+        Error:
+        {error}
+
+        Provide the fixed code as a JSON object with these fields:
+        - description: Brief description of what the code does
+        - code: The fixed code implementation
+        - language: The programming language used
+        - explanation: Brief explanation of what was fixed
+        """
+
+        response = await self.generate_response(prompt, self.system_message)
+
+        try:
+            fixed_code_data = json.loads(response)
+            return fixed_code_data
+        except json.JSONDecodeError:
+            # Fallback: try to extract fixed code
+            if "```" in response:
+                # Extract code from code blocks
+                code_blocks = response.split("```")
+                if len(code_blocks) > 1:
+                    fixed_code = code_blocks[1].strip()
                     return {
                         "description": description,
                         "code": fixed_code,
-                        "language": language
+                        "language": language,
+                        "explanation": "Attempted to fix the error"
                     }
-            elif "TypeError" in error:
-                # Fix type-related errors
-                if "missing" in error and "positional argument" in error:
-                    # Add missing arguments
-                    fixed_code = original_code.replace("def add_numbers(a: int, b: int)", "def add_numbers(a: int = 0, b: int = 0)")
-                    return {
-                        "description": description,
-                        "code": fixed_code,
-                        "language": language
-                    }
-        # For other languages or errors, just return the original code
-        return {
-            "description": description,
-            "code": original_code,
-            "language": language
-        }
+
+            # If no code block found, return original with comment
+            return {
+                "description": description,
+                "code": original_code + f"\n# Attempted fix for error: {error}",
+                "language": language,
+                "explanation": "Could not automatically fix the error"
+            }
+
+    async def process(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Process incoming data for the workflow."""
+        if "subtask" in data and "language" in data:
+            code = await self.develop_code(data["subtask"], data["language"])
+            return {"code": code}
+        elif "code" in data and "error" in data and "language" in data:
+            fixed_code = await self.fix_code(data["code"], data["error"], data["language"])
+            return {"fixed_code": fixed_code}
+        else:
+            return {"error": "Insufficient data for code generation or fixing"}
 
     def _generate_code(self, subtask, language="python"):
         """Generate code based on subtask description."""

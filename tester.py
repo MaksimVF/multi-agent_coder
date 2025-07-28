@@ -13,11 +13,33 @@ import importlib.util
 from pathlib import Path
 import coverage
 import unittest
+
 from unittest.mock import Mock, patch
 import json
+from typing import Dict, Any
 
-class Tester:
-    async def test_code(self, code_data, subtask, language="python", test_type="basic"):
+from base_llm_agent import BaseLLMAgent
+
+class Tester(BaseLLMAgent):
+    """LLM-powered Tester agent for code testing and validation."""
+
+    def __init__(self, model: str = "gpt-4o", temperature: float = 0.3):
+        """
+        Initialize the LLM-powered Tester.
+
+        Args:
+            model: LLM model to use
+            temperature: Creativity level for LLM
+        """
+        super().__init__(model=model, temperature=temperature)
+
+        # Tester-specific configuration
+        self.system_message = (
+            "You are an expert software tester. Your job is to analyze code, "
+            "generate test cases, and validate code quality and correctness."
+        )
+
+    async def test_code(self, code_data: Dict[str, Any], subtask: Dict[str, Any], language: str = "python", test_type: str = "basic") -> Dict[str, Any]:
         """Test the given code with enhanced testing capabilities."""
         code = code_data["code"]
         description = code_data["description"]
@@ -42,6 +64,97 @@ class Tester:
                     "passed": False,
                     "error": f"Unknown test type: {test_type}"
                 }
+
+        except Exception as e:
+            return {
+                "description": description,
+                "passed": False,
+                "error": str(e),
+                "traceback": traceback.format_exc()
+            }
+
+    async def generate_test_cases(self, code: str, language: str = "python") -> Dict[str, Any]:
+        """Generate test cases using LLM."""
+        prompt = f"""
+        Generate comprehensive test cases for the following {language} code:
+
+        Code:
+        {code}
+
+        Provide the test cases as a JSON object with these fields:
+        - test_cases: List of test case objects, each with:
+            - description: What the test verifies
+            - input: Input data for the test
+            - expected_output: Expected result
+            - type: 'unit', 'integration', or 'edge case'
+        - test_strategy: Brief explanation of the testing approach
+        """
+
+        response = await self.generate_response(prompt, self.system_message)
+
+        try:
+            test_cases = json.loads(response)
+            return test_cases
+        except json.JSONDecodeError:
+            # Fallback: extract test cases from response
+            return {
+                "test_cases": [
+                    {
+                        "description": "Basic functionality test",
+                        "input": "standard input",
+                        "expected_output": "expected result",
+                        "type": "unit"
+                    }
+                ],
+                "test_strategy": "Basic testing approach"
+            }
+
+    async def process(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Process incoming data for the workflow."""
+        if "code" in data and "subtask" in data and "language" in data and "test_type" in data:
+            test_result = await self.test_code(
+                data["code"],
+                data["subtask"],
+                data["language"],
+                data["test_type"]
+            )
+            return {"test_result": test_result}
+        else:
+            return {"error": "Insufficient data for testing"}
+
+    async def _basic_test(self, code_data, subtask, language):
+        """Run basic execution test."""
+        code = code_data["code"]
+        description = code_data["description"]
+
+        try:
+            # Determine file extension and execution command based on language
+            if language == "python":
+                file_suffix = '.py'
+                command = ['python', '{filename}']
+            elif language == "javascript":
+                file_suffix = '.js'
+                command = ['node', '{filename}']
+            elif language == "java":
+                return await self._java_test(code, description)
+            elif language == "csharp":
+                file_suffix = '.cs'
+                command = ['dotnet', 'run', '--project', '{filename}']
+            else:
+                # Default to Python
+                file_suffix = '.py'
+                command = ['python', '{filename}']
+
+            # Write code to a temporary file and execute
+            with tempfile.NamedTemporaryFile(mode='w', suffix=file_suffix, delete=False) as f:
+                f.write(code)
+                temp_file = f.name
+
+            result = self._execute_command(command, description, temp_file)
+
+            # Clean up
+            os.unlink(temp_file)
+            return result
 
         except Exception as e:
             return {

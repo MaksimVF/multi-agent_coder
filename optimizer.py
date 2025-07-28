@@ -1,6 +1,7 @@
 
 
 
+
 import json
 import os
 import datetime
@@ -8,9 +9,31 @@ from pathlib import Path
 import re
 import ast
 import traceback
+from typing import Dict, Any
+from base_llm_agent import BaseLLMAgent
 
-class Optimizer:
-    def __init__(self):
+class Optimizer(BaseLLMAgent):
+
+
+    """LLM-powered Optimizer agent for code analysis and improvement."""
+
+    def __init__(self, model: str = "gpt-4o", temperature: float = 0.5):
+        """
+        Initialize the LLM-powered Optimizer.
+
+        Args:
+            model: LLM model to use
+            temperature: Creativity level for LLM
+        """
+        super().__init__(model=model, temperature=temperature)
+
+        # Optimizer-specific configuration
+        self.system_message = (
+            "You are an expert code optimizer. Your job is to analyze code, "
+            "identify performance bottlenecks, and suggest improvements for "
+            "readability, maintainability, and performance."
+        )
+
         self.improvements_log = Path("improvements.log")
         self.history_log = Path("optimizer_history.json")
         self.researcher = None  # Will be set by main
