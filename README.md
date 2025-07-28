@@ -2,7 +2,7 @@
 
 # Multi-Agent Coder
 
-A multi-agent system for coding tasks with three agents: Analyst, Developer, and Tester.
+A multi-agent system for coding tasks with five agents: Analyst, Developer, Tester, Optimizer, and Researcher.
 
 ## Features
 
@@ -13,6 +13,9 @@ A multi-agent system for coding tasks with three agents: Analyst, Developer, and
 - **Multi-language Support**: Python, JavaScript, Java, C#
 - **Version Control Integration**: Automatically commits generated code to Git
 - Uses asyncio for parallel execution
+- **Optimizer**: Analyzes all agents' work and suggests improvements
+- **Researcher**: Fetches documentation, examples, and best practices from the web
+- **Self-Improvement**: Optimizer logs improvements and learns over time
 - Simple CLI interface
 
 ## Installation
@@ -177,6 +180,8 @@ Identified 4 subtasks:
 - `main.py`: Entry point with CLI interface and language support
 - `analyst.py`: Analyst agent implementation
 - `developer.py`: Developer agent with multi-language code generation
+- `optimizer.py`: Optimizer agent for code analysis and improvement
+- `researcher.py`: Researcher agent for web research and documentation
 - `tester.py`: Tester agent with multi-language testing capabilities
 
 ## Supported Languages

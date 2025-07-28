@@ -2,3 +2,5 @@
 # Multi-Agent Coder Requirements
 coverage>=6.0  # For code coverage measurement
 unittest2>=1.0  # For enhanced unit testing capabilities
+aiohttp>=3.0  # For async HTTP requests in Researcher
+beautifulsoup4>=4.0  # For HTML parsing in Researcher
