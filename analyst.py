@@ -1,248 +1,354 @@
 
 
 
+
+
+
 import json
 import re
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from base_llm_agent import BaseLLMAgent
 
 class Analyst(BaseLLMAgent):
-    """LLM-powered Analyst agent for task analysis."""
+    """LLM-powered Analyst agent for task analysis and breakdown."""
 
-    def __init__(self, model: str = "gpt-4o", temperature: float = 0.5):
-        """
-        Initialize the LLM-powered Analyst.
+    def __init__(self, temperature: float = 0.5):
+        """Initialize the Analyst agent."""
+        super().__init__(temperature=temperature)
+        self.system_message = """You are an expert task analyst. Your job is to break down complex tasks into manageable subtasks with detailed analysis."""
 
-        Args:
-            model: LLM model to use
-            temperature: Creativity level for LLM
-        """
-        super().__init__(model=model, temperature=temperature)
-
-        # Analyst-specific configuration
-        self.system_message = (
-            "You are an expert software analyst. Your job is to analyze coding tasks, "
-            "break them down into subtasks, and provide insights about requirements and code quality."
-        )
-
-    async def analyze_task(self, task_description: str) -> List[Dict[str, str]]:
-        """Analyze a task and break it down into subtasks using LLM."""
+    async def analyze_task(self, task_description: str) -> List[Dict[str, Any]]:
+        """Analyze a task and break it down into subtasks using advanced AI/ML techniques."""
         print(f"🔍 Analyzing task with LLM: {task_description}")
 
-        prompt = f"""
-        Analyze the following coding task and break it down into logical subtasks:
+        # Prepare enhanced prompt for LLM with AI/ML task analysis
+        prompt = f"""Perform an advanced analysis of the following task using AI/ML techniques. Break it down into smaller, manageable subtasks with the following details:
 
-        Task: {task_description}
+1. Clear description of the subtask
+2. Expected output or result
+3. Dependencies on other subtasks
+4. Estimated difficulty (easy, medium, hard)
+5. Required technical skills or domains
+6. Potential challenges or edge cases
+7. Suggested approach or algorithm
+8. Time estimate (low, medium, high)
 
-        Provide the subtasks as a JSON list with each subtask having a 'description' field.
-        Consider the programming language, main functionality, and any specific requirements.
-        """
+Task: {task_description}
+
+Return the analysis as valid JSON in the following format:
+{{
+    "analysis_summary": {{
+        "task_complexity": "string",
+        "main_domains": ["string"],
+        "key_challenges": ["string"],
+        "suggested_approach": "string"
+    }},
+    "subtasks": [
+        {{
+            "description": "string",
+            "expected_output": "string",
+            "dependencies": ["string"],
+            "difficulty": "string",
+            "required_skills": ["string"],
+            "potential_challenges": ["string"],
+            "suggested_approach": "string",
+            "time_estimate": "string"
+        }}
+    ],
+    "risk_assessment": {{
+        "high_risk_areas": ["string"],
+        "mitigation_strategies": ["string"]
+    }}
+}}"""
 
         # Call LLM to analyze the task
-        response = await self.generate_response(prompt, self.system_message)
-
         try:
-            # Try to parse the response as JSON
-            subtasks = json.loads(response)
-            print(f"📋 Identified {len(subtasks)} subtasks from LLM:")
-            for subtask in subtasks:
-                print(f"  - {subtask.get('description', 'Unknown')}")
-            return subtasks
-        except json.JSONDecodeError:
-            print("⚠️  LLM response not valid JSON, falling back to manual parsing")
-            # Fallback: parse the response manually
-            return self._parse_subtasks_response(response)
+            llm_response = await self._call_llm(prompt)
+            response_text = llm_response.get("content", "{}")
 
-    def _parse_subtasks_response(self, response: str) -> List[Dict[str, str]]:
+            # Try to parse the JSON response
+            try:
+                analysis = json.loads(response_text)
+                subtasks = analysis.get("subtasks", [])
+
+                # Store the full analysis for reference
+                self.memory["last_analysis"] = analysis
+
+                print(f"📋 Identified {len(subtasks)} subtasks from LLM:")
+                for subtask in subtasks:
+                    print(f"  - {subtask.get('description', 'Unknown')}")
+
+                return subtasks
+            except json.JSONDecodeError:
+                print("⚠️  LLM response not valid JSON, falling back to manual parsing")
+                # Fallback: Extract subtasks from text response with AI-enhanced parsing
+                return await self._parse_subtasks_response(response_text, task_description)
+
+        except Exception as e:
+            print(f"Error calling LLM: {e}")
+            # Fallback to AI-enhanced simple analysis
+            return await self._create_fallback_subtasks(task_description)
+
+    async def _parse_subtasks_response(self, response: str, task_description: str) -> List[Dict[str, Any]]:
         """Parse subtasks from LLM response when it's not valid JSON."""
         subtasks = []
         lines = response.split('\n')
+        current_subtask = None
+        current_section = None
 
         for line in lines:
             line = line.strip()
-            if line and ('-' in line or '•' in line or '*' in line or line.strip().isdigit()):
-                # Extract subtask description
-                description = line.split('-', 1)[-1].split('•', 1)[-1].split('*', 1)[-1].strip()
-                description = re.sub(r'^\d+\.\s*', '', description)  # Remove numbering
-                if description:
-                    subtasks.append({"description": description})
+
+            # Detect new subtask
+            if line.startswith("- ") or line.strip().isdigit() or "subtask" in line.lower():
+                if current_subtask:
+                    subtasks.append(current_subtask)
+                current_subtask = {
+                    "description": line.replace("- ", "").replace("subtask", "").strip(),
+                    "expected_output": "",
+                    "dependencies": [],
+                    "difficulty": "medium",
+                    "required_skills": [],
+                    "potential_challenges": [],
+                    "suggested_approach": "",
+                    "time_estimate": "medium"
+                }
+                current_section = "description"
+
+            # Parse different sections
+            elif current_subtask:
+                if line.lower().startswith(("output:", "result:")):
+                    current_subtask["expected_output"] = line.replace("output:", "").replace("result:", "").strip()
+                    current_section = "output"
+                elif line.lower().startswith(("dep:", "depends:", "dependencies:")):
+                    deps = line.replace("dep:", "").replace("depends:", "").replace("dependencies:", "").strip()
+                    current_subtask["dependencies"] = [d.strip() for d in deps.split(",") if d.strip()]
+                    current_section = "dependencies"
+                elif line.lower().startswith(("diff:", "difficulty:")):
+                    current_subtask["difficulty"] = line.replace("diff:", "").replace("difficulty:", "").strip().lower()
+                    current_section = "difficulty"
+                elif line.lower().startswith(("skills:", "required:", "expertise:")):
+                    skills = line.replace("skills:", "").replace("required:", "").replace("expertise:", "").strip()
+                    current_subtask["required_skills"] = [s.strip() for s in skills.split(",") if s.strip()]
+                    current_section = "skills"
+                elif line.lower().startswith(("challenges:", "risks:", "issues:")):
+                    challenges = line.replace("challenges:", "").replace("risks:", "").replace("issues:", "").strip()
+                    current_subtask["potential_challenges"] = [c.strip() for c in challenges.split(",") if c.strip()]
+                    current_section = "challenges"
+                elif line.lower().startswith(("approach:", "method:", "algorithm:")):
+                    current_subtask["suggested_approach"] = line.replace("approach:", "").replace("method:", "").replace("algorithm:", "").strip()
+                    current_section = "approach"
+                elif line.lower().startswith(("time:", "estimate:", "effort:")):
+                    current_subtask["time_estimate"] = line.replace("time:", "").replace("estimate:", "").replace("effort:", "").strip().lower()
+                    current_section = "time"
+                elif current_section and line:
+                    # Continue the current section
+                    if current_section == "description":
+                        current_subtask["description"] += " " + line
+                    elif current_section == "output":
+                        current_subtask["expected_output"] += " " + line
+                    elif current_section == "approach":
+                        current_subtask["suggested_approach"] += " " + line
+
+        if current_subtask:
+            subtasks.append(current_subtask)
 
         # Add default subtasks if none were found
         if not subtasks:
             print("⚠️  No subtasks found in LLM response, using fallback")
-            subtasks = [
-                {"description": "function signature"},
-                {"description": "function logic"},
-                {"description": "input validation"},
-                {"description": "unit tests"}
-            ]
+            return await self._create_fallback_subtasks(task_description)
 
         return subtasks
 
-    async def analyze_requirements(self, requirements: str) -> Dict[str, Any]:
-        """Analyze requirements using LLM."""
-        prompt = f"""
-        Analyze the following software requirements and extract key information:
+    async def _create_fallback_subtasks(self, task_description: str) -> List[Dict[str, Any]]:
+        """Create fallback subtasks using basic AI analysis."""
+        # Use a simpler prompt for fallback
+        prompt = f"""Break down this task into basic subtasks: {task_description}
 
-        Requirements: {requirements}
-
-        Provide the analysis as a JSON object with these fields:
-        - language: The programming language
-        - main_functionality: The main feature or function to implement
-        - constraints: List of any constraints or requirements
-        - dependencies: List of any dependencies or libraries needed
-        """
-
-        response = await self.generate_response(prompt, self.system_message)
+        Provide a simple list of subtasks."""
 
         try:
-            analysis = json.loads(response)
-            return analysis
-        except json.JSONDecodeError:
-            # Fallback to simple analysis
-            return self._simple_requirements_analysis(requirements)
+            response = await self.generate_response(prompt, self.system_message)
+            lines = response.split('\n')
 
-    def _simple_requirements_analysis(self, requirements: str) -> Dict[str, Any]:
-        """Fallback requirements analysis when LLM response is invalid."""
-        analysis = {
-            "language": "unknown",
-            "main_functionality": "unknown",
-            "constraints": [],
-            "dependencies": []
-        }
+            subtasks = []
+            for line in lines:
+                line = line.strip()
+                if line and ('-' in line or '•' in line or '*' in line or line.strip().isdigit()):
+                    # Extract subtask description
+                    description = line.split('-', 1)[-1].split('•', 1)[-1].split('*', 1)[-1].strip()
+                    description = re.sub(r'^\d+\.\s*', '', description)  # Remove numbering
+                    if description:
+                        subtasks.append({
+                            "description": description,
+                            "expected_output": "Completed subtask",
+                            "dependencies": [],
+                            "difficulty": "medium",
+                            "required_skills": ["programming"],
+                            "potential_challenges": ["implementation"],
+                            "suggested_approach": "standard",
+                            "time_estimate": "medium"
+                        })
 
-        # Try to identify language
-        requirements_lower = requirements.lower()
-        if "python" in requirements_lower:
-            analysis["language"] = "python"
-        elif "javascript" in requirements_lower or "js" in requirements_lower:
-            analysis["language"] = "javascript"
-        elif "java" in requirements_lower:
-            analysis["language"] = "java"
-        elif "c#" in requirements_lower or "csharp" in requirements_lower:
-            analysis["language"] = "csharp"
+            # Add default subtasks if none were found
+            if not subtasks:
+                subtasks = [
+                    {
+                        "description": "function signature",
+                        "expected_output": "Function definition",
+                        "dependencies": [],
+                        "difficulty": "easy",
+                        "required_skills": ["programming"],
+                        "potential_challenges": ["naming"],
+                        "suggested_approach": "standard",
+                        "time_estimate": "low"
+                    },
+                    {
+                        "description": "function logic",
+                        "expected_output": "Working implementation",
+                        "dependencies": ["function signature"],
+                        "difficulty": "medium",
+                        "required_skills": ["programming", "algorithms"],
+                        "potential_challenges": ["edge cases"],
+                        "suggested_approach": "iterative",
+                        "time_estimate": "medium"
+                    },
+                    {
+                        "description": "input validation",
+                        "expected_output": "Validated inputs",
+                        "dependencies": ["function signature"],
+                        "difficulty": "medium",
+                        "required_skills": ["programming", "security"],
+                        "potential_challenges": ["invalid inputs"],
+                        "suggested_approach": "defensive",
+                        "time_estimate": "medium"
+                    },
+                    {
+                        "description": "unit tests",
+                        "expected_output": "Test coverage",
+                        "dependencies": ["function logic", "input validation"],
+                        "difficulty": "medium",
+                        "required_skills": ["testing"],
+                        "potential_challenges": ["coverage"],
+                        "suggested_approach": "tdd",
+                        "time_estimate": "medium"
+                    }
+                ]
 
-        return analysis
+            return subtasks
 
-    async def analyze_code_quality(self, code: str) -> Dict[str, Any]:
-        """Analyze code quality using LLM."""
-        prompt = f"""
-        Analyze the following code for quality, readability, maintainability, and performance.
-        Provide suggestions for improvement.
+        except Exception as e:
+            print(f"Error in fallback analysis: {e}")
+            # Ultimate fallback
+            return [{
+                "description": task_description,
+                "expected_output": "Completed task",
+                "dependencies": [],
+                "difficulty": "medium",
+                "required_skills": ["problem_solving", "programming"],
+                "potential_challenges": ["task_ambiguity", "resource_limitation"],
+                "suggested_approach": "iterative_development",
+                "time_estimate": "medium"
+            }]
 
-        Code:
-        {code}
+    async def perform_ml_analysis(self, task_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Perform machine learning analysis on task data."""
+        # This would be a placeholder for actual ML analysis
+        # In a real implementation, this could use:
+        # - Natural Language Processing (NLP) for task understanding
+        # - Clustering algorithms for subtask identification
+        # - Predictive models for difficulty estimation
+        # - Graph analysis for dependency mapping
 
-        Provide the analysis as a JSON object with these fields:
-        - readability: 'good', 'average', or 'needs improvement'
-        - maintainability: 'good', 'average', or 'needs improvement'
-        - performance: 'good', 'average', or 'needs improvement'
-        - suggestions: List of improvement suggestions
-        """
+        print("🧠 Performing ML analysis on task data...")
 
-        response = await self.generate_response(prompt, self.system_message)
+        # For now, we'll simulate ML analysis using LLM
+        prompt = f"""Perform machine learning analysis on the following task data:
+
+{json.dumps(task_data, indent=2)}
+
+Analyze:
+1. Task sentiment and complexity
+2. Key technical domains involved
+3. Potential risk factors
+4. Optimal development approach
+5. Resource allocation recommendations
+
+Return as valid JSON."""
 
         try:
-            analysis = json.loads(response)
-            return analysis
-        except json.JSONDecodeError:
-            # Fallback to simple analysis
-            return self._simple_code_quality_analysis(code)
+            llm_response = await self._call_llm(prompt)
+            response_text = llm_response.get("content", "{}")
 
-    def _simple_code_quality_analysis(self, code: str) -> Dict[str, Any]:
-        """Fallback code quality analysis."""
-        analysis = {
-            "readability": "average",
-            "maintainability": "average",
-            "performance": "average",
-            "suggestions": ["Consider adding more comments", "Review variable naming"]
-        }
-        return analysis
+            try:
+                ml_analysis = json.loads(response_text)
+                self.memory["ml_analysis"] = ml_analysis
+                return ml_analysis
+            except json.JSONDecodeError:
+                print("⚠️  ML analysis response not valid JSON")
+                return {
+                    "sentiment": "neutral",
+                    "complexity": "medium",
+                    "domains": ["software_development", "ai_ml"],
+                    "risk_factors": ["ambiguous_requirements"],
+                    "recommended_approach": "agile_development",
+                    "resource_allocation": "balanced"
+                }
 
-    async def process(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Process incoming data for the workflow."""
-        task_description = data.get("task_description", "")
+        except Exception as e:
+            print(f"Error in ML analysis: {e}")
+            return {
+                "sentiment": "neutral",
+                "complexity": "medium",
+                "domains": ["software_development"],
+                "risk_factors": ["unknown"],
+                "recommended_approach": "standard",
+                "resource_allocation": "normal"
+            }
 
-        if task_description:
-            subtasks = await self.analyze_task(task_description)
-            return {"subtasks": subtasks}
-        else:
-            return {"error": "No task description provided"}
+    async def generate_task_embedding(self, task_description: str) -> List[float]:
+        """Generate an embedding vector for the task description."""
+        # This would be a placeholder for actual embedding generation
+        # In a real implementation, this could use:
+        # - Transformer models for text embedding
+        # - Domain-specific embedding techniques
+        # - Dimensionality reduction for visualization
 
+        print("🎯 Generating task embedding...")
 
-    def _analyze_function_task(self, task_description):
-        """Analyze a function-related task."""
-        subtasks = [
-            {"id": 1, "description": "Define function signature and parameters"},
-            {"id": 2, "description": "Implement core function logic"},
-            {"id": 3, "description": "Add input validation and error handling"},
-            {"id": 4, "description": "Write comprehensive docstring with examples"},
-            {"id": 5, "description": "Add type hints and annotations"}
-        ]
+        # For now, we'll simulate embedding generation
+        # In a real implementation, we'd call an embedding API or local model
+        return [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
 
-        # Add specific subtasks based on function type
-        if "math" in task_description or "calculate" in task_description:
-            subtasks.insert(2, {"id": 2.5, "description": "Implement mathematical formula"})
-        elif "file" in task_description or "io" in task_description:
-            subtasks.insert(2, {"id": 2.5, "description": "Handle file operations safely"})
-        elif "network" in task_description or "api" in task_description:
-            subtasks.insert(2, {"id": 2.5, "description": "Implement network communication"})
+    async def identify_similar_tasks(self, task_embedding: List[float], threshold: float = 0.8) -> List[Dict[str, Any]]:
+        """Identify similar tasks based on embedding similarity."""
+        # This would be a placeholder for actual similarity search
+        # In a real implementation, this could use:
+        # - Vector databases for efficient similarity search
+        # - Cosine similarity or other distance metrics
+        # - Historical task data for comparison
 
-        return subtasks
+        print("🔍 Identifying similar tasks...")
 
-    def _analyze_class_task(self, task_description):
-        """Analyze a class-related task."""
-        subtasks = [
-            {"id": 1, "description": "Define class structure and inheritance"},
-            {"id": 2, "description": "Implement core methods"},
-            {"id": 3, "description": "Add properties with getters/setters"},
-            {"id": 4, "description": "Implement __init__ and __str__ methods"},
-            {"id": 5, "description": "Write class-level docstring"},
-            {"id": 6, "description": "Add type hints and annotations"}
-        ]
-
-        # Add specific subtasks based on class type
-        if "database" in task_description or "model" in task_description:
-            subtasks.insert(2, {"id": 2.5, "description": "Implement database integration"})
-        elif "ui" in task_description or "interface" in task_description:
-            subtasks.insert(2, {"id": 2.5, "description": "Design user interface elements"})
-        elif "manager" in task_description or "controller" in task_description:
-            subtasks.insert(2, {"id": 2.5, "description": "Implement control logic"})
-
-        return subtasks
-
-    def _analyze_algorithm_task(self, task_description):
-        """Analyze an algorithm-related task."""
+        # For now, we'll simulate similarity search
         return [
-            {"id": 1, "description": "Define algorithm requirements"},
-            {"id": 2, "description": "Design algorithm structure"},
-            {"id": 3, "description": "Implement core algorithm logic"},
-            {"id": 4, "description": "Add edge case handling"},
-            {"id": 5, "description": "Optimize algorithm performance"},
-            {"id": 6, "description": "Write algorithm documentation"}
+            {
+                "task_id": "task_001",
+                "description": "Create a Python function to calculate factorial",
+                "similarity": 0.85,
+                "outcome": "successful",
+                "lessons_learned": ["use recursion carefully", "handle large numbers"]
+            },
+            {
+                "task_id": "task_002",
+                "description": "Implement a sorting algorithm in Python",
+                "similarity": 0.78,
+                "outcome": "successful",
+                "lessons_learned": ["choose right algorithm", "optimize for edge cases"]
+            }
         ]
 
-    def _analyze_api_task(self, task_description):
-        """Analyze an API-related task."""
-        return [
-            {"id": 1, "description": "Define API endpoints"},
-            {"id": 2, "description": "Design request/response format"},
-            {"id": 3, "description": "Implement API handlers"},
-            {"id": 4, "description": "Add authentication/authorization"},
-            {"id": 5, "description": "Implement error handling"},
-            {"id": 6, "description": "Write API documentation"}
-        ]
 
-    def _analyze_generic_task(self, task_description):
-        """Analyze a generic task."""
-        return [
-            {"id": 1, "description": "Understand requirements"},
-            {"id": 2, "description": "Design solution architecture"},
-            {"id": 3, "description": "Implement core functionality"},
-            {"id": 4, "description": "Add error handling and validation"},
-            {"id": 5, "description": "Write documentation and comments"},
-            {"id": 6, "description": "Test and debug solution"}
-        ]
 
 
 

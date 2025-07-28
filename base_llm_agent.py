@@ -84,7 +84,7 @@ class BaseLLMAgent:
                 lambda: completion(
                     model=self.model,
                     messages=messages,
-                    temperature=self.temperature,
+                    temperature=float(self.temperature),
                     max_tokens=self.max_tokens,
                     api_key=self.litellm_config["api_key"]
                 )
