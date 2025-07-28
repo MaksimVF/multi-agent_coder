@@ -1,32 +1,32 @@
 [
   {
     "description": "Define function signature and parameters",
-    "passed": false,
-    "error": "F\n======================================================================\nFAIL: test_basic_functionality (__main__.TestGeneratedCode.test_basic_functionality)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/tmp/tmpz9p0s5qs.py\", line 26, in test_basic_functionality\n    if \"def add\" in code:\n                    ^^^^\nNameError: name 'code' is not defined. Did you forget to import 'code'\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/tmp/tmpz9p0s5qs.py\", line 40, in test_basic_functionality\n    self.fail(f\"Test failed with exception: {e}\")\nAssertionError: Test failed with exception: name 'code' is not defined\n\n----------------------------------------------------------------------\nRan 1 test in 0.001s\n\nFAILED (failures=1)\n"
+    "passed": true,
+    "output": "Unit tests passed"
   },
   {
     "description": "Implement core function logic",
-    "passed": false,
-    "error": "  File \"/tmp/tmp52im8chn.py\", line 18\n    return a +  # Syntax error for testing\n                ^^^^^^^^^^^^^^^^^^^^^^^^^^^\nSyntaxError: invalid syntax\n"
+    "passed": true,
+    "output": "Unit tests passed"
   },
   {
     "description": "Handle file operations safely",
-    "passed": false,
-    "error": "F\n======================================================================\nFAIL: test_basic_functionality (__main__.TestGeneratedCode.test_basic_functionality)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/tmp/tmplbrf60mc.py\", line 20, in test_basic_functionality\n    if \"def add\" in code:\n                    ^^^^\nNameError: name 'code' is not defined. Did you forget to import 'code'\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/tmp/tmplbrf60mc.py\", line 34, in test_basic_functionality\n    self.fail(f\"Test failed with exception: {e}\")\nAssertionError: Test failed with exception: name 'code' is not defined\n\n----------------------------------------------------------------------\nRan 1 test in 0.001s\n\nFAILED (failures=1)\n"
+    "passed": true,
+    "output": "Unit tests passed"
   },
   {
     "description": "Add input validation and error handling",
-    "passed": false,
-    "error": "  File \"/tmp/tmpof6vpuwp.py\", line 23\n    return a +  # Another syntax error for testing\n                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nSyntaxError: invalid syntax\n"
+    "passed": true,
+    "output": "Unit tests passed"
   },
   {
     "description": "Write comprehensive docstring with examples",
-    "passed": false,
-    "error": "F\n======================================================================\nFAIL: test_basic_functionality (__main__.TestGeneratedCode.test_basic_functionality)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/tmp/tmpc0p2ayo0.py\", line 40, in test_basic_functionality\n    if \"def add\" in code:\n                    ^^^^\nNameError: name 'code' is not defined. Did you forget to import 'code'\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/tmp/tmpc0p2ayo0.py\", line 54, in test_basic_functionality\n    self.fail(f\"Test failed with exception: {e}\")\nAssertionError: Test failed with exception: name 'code' is not defined\n\n----------------------------------------------------------------------\nRan 1 test in 0.001s\n\nFAILED (failures=1)\n"
+    "passed": true,
+    "output": "Unit tests passed"
   },
   {
     "description": "Add type hints and annotations",
-    "passed": false,
-    "error": "F\n======================================================================\nFAIL: test_basic_functionality (__main__.TestGeneratedCode.test_basic_functionality)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/tmp/tmp3y5ahhhq.py\", line 20, in test_basic_functionality\n    if \"def add\" in code:\n                    ^^^^\nNameError: name 'code' is not defined. Did you forget to import 'code'\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/tmp/tmp3y5ahhhq.py\", line 34, in test_basic_functionality\n    self.fail(f\"Test failed with exception: {e}\")\nAssertionError: Test failed with exception: name 'code' is not defined\n\n----------------------------------------------------------------------\nRan 1 test in 0.001s\n\nFAILED (failures=1)\n"
+    "passed": true,
+    "output": "Unit tests passed"
   }
 ]
