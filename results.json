@@ -1,0 +1,32 @@
+[
+  {
+    "description": "Define function signature and parameters",
+    "passed": true,
+    "output": ""
+  },
+  {
+    "description": "Implement core function logic",
+    "passed": true,
+    "output": ""
+  },
+  {
+    "description": "Handle file operations safely",
+    "passed": true,
+    "output": ""
+  },
+  {
+    "description": "Add input validation and error handling",
+    "passed": true,
+    "output": ""
+  },
+  {
+    "description": "Write comprehensive docstring with examples",
+    "passed": true,
+    "output": ""
+  },
+  {
+    "description": "Add type hints and annotations",
+    "passed": true,
+    "output": ""
+  }
+]
