@@ -81,12 +81,32 @@ python main.py --task "Write a function to add two numbers" --test-type unit
 
 # Performance testing
 python main.py --task "Write a function to add two numbers" --test-type performance
+
+# Integration testing
+python main.py --task "Write a function to add two numbers" --test-type integration
 ```
 
 Example output:
 
+```
+📋 Final Results:
+1. ✅ Passed: Define function signature and parameters
+2. ✅ Passed: Implement core function logic
+3. ✅ Passed: Handle file operations safely
+4. ✅ Passed: Add input validation and error handling
+5. ✅ Passed: Write comprehensive docstring with examples
+6. ✅ Passed: Add type hints and annotations
+   Performance: 25.37 ms
+```
 
+### Testing Features Details
 
+1. **Unit Testing**: Automatically generates and runs unit tests for Python code
+2. **Performance Testing**: Measures execution time in milliseconds
+3. **Integration Testing**: Tests interactions between components
+4. **Error Handling**: Provides detailed error messages for failed tests
+
+All test results are saved to `results.json` with detailed information about each test case.
 
 ```
 🔍 Analyst is analyzing the task...
