@@ -102,10 +102,28 @@ async def main(task_description, language="python"):
     print("\n📋 Final Results:")
     for i, result in enumerate(test_results, 1):
         status = "✅ Passed" if result["passed"] else "❌ Failed"
-        print(f"{i}. {status}: {result['description']}")
-        # Print performance metrics if available
+        print(f"{i}. {status}: {result['description']} ({result.get('test_type', 'basic')})")
+
+        # Print additional metrics based on test type
         if "performance" in result:
-            print(f"   Performance: {result['performance']['execution_time_ms']:.2f} ms")
+            print(f"   📊 Performance: {result['performance']['execution_time_ms']:.2f} ms")
+            if "memory_usage_kb" in result['performance']:
+                print(f"   📊 Memory Usage: {result['performance']['memory_usage_kb']:.2f} KB")
+
+        if "coverage" in result:
+            print(f"   📊 Coverage: {result['coverage']['percentage']:.1f}% "
+                  f"({result['coverage']['covered_lines']}/{result['coverage']['total_lines']} lines)")
+
+        if "security_issues" in result:
+            print(f"   🔒 Security Issues: {len(result['security_issues'])} found")
+            for issue in result['security_issues']:
+                print(f"      - {issue}")
+
+        # Print error details if failed
+        if not result["passed"]:
+            print(f"   🔍 Error: {result['error']}")
+            if "traceback" in result:
+                print(f"   🔍 Traceback: {result['traceback']}")
 
     return test_results
 
@@ -115,7 +133,7 @@ if __name__ == "__main__":
 
 
     parser.add_argument("--language", choices=["python", "javascript", "java", "csharp"], default="python", help="Programming language to use")
-    parser.add_argument("--test-type", choices=["basic", "unit", "integration", "performance"], default="basic", help="Type of testing to perform")
+    parser.add_argument("--test-type", choices=["basic", "unit", "integration", "performance", "coverage", "security"], default="basic", help="Type of testing to perform")
 
     parser.add_argument("--branch", help="Git branch to create and push to")
     parser.add_argument("--push", action="store_true", help="Push changes to remote repository")
