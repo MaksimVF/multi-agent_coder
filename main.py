@@ -51,7 +51,7 @@ async def main(task_description, language="python"):
 
     # First round of testing
     for code in all_code:
-        result = tester.test_code(code, language)
+        result = await tester.test_code(code, subtask, language, args.test_type)
         test_results.append(result)
         if not result["passed"]:
             print(f"❌ Test failed for code: {code['description']}")
@@ -82,7 +82,7 @@ async def main(task_description, language="python"):
             # Developer fixes the code
             fixed_code = developer.fix_code(code, error, language)
             # Test the fixed code
-            result = tester.test_code(fixed_code, language)
+            result = await tester.test_code(fixed_code, subtask, language, args.test_type)
             if result["passed"]:
                 print(f"✅ Fixed: {fixed_code['description']}")
                 # Replace the old result with the new one
@@ -103,6 +103,9 @@ async def main(task_description, language="python"):
     for i, result in enumerate(test_results, 1):
         status = "✅ Passed" if result["passed"] else "❌ Failed"
         print(f"{i}. {status}: {result['description']}")
+        # Print performance metrics if available
+        if "performance" in result:
+            print(f"   Performance: {result['performance']['execution_time_ms']:.2f} ms")
 
     return test_results
 
@@ -110,7 +113,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Multi-Agent Coder")
     parser.add_argument("--task", required=True, help="Description of the coding task")
 
+
     parser.add_argument("--language", choices=["python", "javascript", "java", "csharp"], default="python", help="Programming language to use")
+    parser.add_argument("--test-type", choices=["basic", "unit", "integration", "performance"], default="basic", help="Type of testing to perform")
+
     parser.add_argument("--branch", help="Git branch to create and push to")
     parser.add_argument("--push", action="store_true", help="Push changes to remote repository")
 

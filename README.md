@@ -61,7 +61,32 @@ This will:
 4. Create and checkout a new branch
 5. Push changes to the remote repository
 
+
+
+
+### Advanced Testing Features
+
+The system supports different types of testing:
+
+- **Basic testing** (default): Simple execution test
+- **Unit testing**: Creates and runs unit tests (Python only for now)
+- **Integration testing**: Tests component interactions
+- **Performance testing**: Measures execution time
+
+Use the `--test-type` parameter:
+
+```bash
+# Unit testing
+python main.py --task "Write a function to add two numbers" --test-type unit
+
+# Performance testing
+python main.py --task "Write a function to add two numbers" --test-type performance
+```
+
 Example output:
+
+
+
 
 ```
 🔍 Analyst is analyzing the task...
