@@ -2,31 +2,31 @@
   {
     "description": "Define function signature and parameters",
     "passed": true,
-    "output": "Unit tests passed"
+    "output": ""
   },
   {
     "description": "Implement core function logic",
     "passed": true,
-    "output": "Unit tests passed"
+    "output": ""
   },
   {
     "description": "Handle file operations safely",
     "passed": true,
-    "output": "Unit tests passed"
+    "output": ""
   },
   {
     "description": "Add input validation and error handling",
     "passed": true,
-    "output": "Unit tests passed"
+    "output": ""
   },
   {
     "description": "Write comprehensive docstring with examples",
     "passed": true,
-    "output": "Unit tests passed"
+    "output": ""
   },
   {
     "description": "Add type hints and annotations",
     "passed": true,
-    "output": "Unit tests passed"
+    "output": ""
   }
 ]
