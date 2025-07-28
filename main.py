@@ -12,6 +12,8 @@ from pathlib import Path
 from analyst import Analyst
 from developer import Developer
 from tester import Tester
+from optimizer import Optimizer
+from researcher import Researcher
 from vcs_manager import VCSManager
 
 async def main(task_description, language="python"):
@@ -22,6 +24,9 @@ async def main(task_description, language="python"):
     analyst = Analyst()
     developer = Developer()
     tester = Tester()
+    researcher = Researcher()
+    optimizer = Optimizer()
+    optimizer.researcher = researcher  # Connect optimizer to researcher
 
     # Analyst analyzes the task
     print("🔍 Analyst is analyzing the task...")
@@ -102,12 +107,61 @@ async def main(task_description, language="python"):
     print("\n📋 Final Results:")
     for i, result in enumerate(test_results, 1):
         status = "✅ Passed" if result["passed"] else "❌ Failed"
-        print(f"{i}. {status}: {result['description']}")
-        # Print performance metrics if available
-        if "performance" in result:
-            print(f"   Performance: {result['performance']['execution_time_ms']:.2f} ms")
+        print(f"{i}. {status}: {result['description']} ({result.get('test_type', 'basic')})")
 
-    return test_results
+        # Print additional metrics based on test type
+        if "performance" in result:
+            print(f"   📊 Performance: {result['performance']['execution_time_ms']:.2f} ms")
+            if "memory_usage_kb" in result['performance']:
+                print(f"   📊 Memory Usage: {result['performance']['memory_usage_kb']:.2f} KB")
+
+        if "coverage" in result:
+            print(f"   📊 Coverage: {result['coverage']['percentage']:.1f}% "
+                  f"({result['coverage']['covered_lines']}/{result['coverage']['total_lines']} lines)")
+
+        if "security_issues" in result:
+            print(f"   🔒 Security Issues: {len(result['security_issues'])} found")
+            for issue in result['security_issues']:
+                print(f"      - {issue}")
+
+        # Print error details if failed
+        if not result["passed"]:
+            print(f"   🔍 Error: {result['error']}")
+            if "traceback" in result:
+                print(f"   🔍 Traceback: {result['traceback']}")
+
+    # Optimization phase
+    print("\n🔧 Optimizer is analyzing and optimizing the results...")
+
+    # Prepare data for optimizer
+    final_code = {
+        "code": "\n\n".join([code["code"] for code in all_code]),
+        "description": task_description,
+        "language": language
+    }
+
+    # Run optimization
+    optimization_result = await optimizer.analyze_and_optimize(
+        task_description,
+        final_code,
+        test_results,
+        language
+    )
+
+    if optimization_result["success"]:
+        print("\n💡 Optimization Results:")
+        print(f"   📊 Analysis: {len(optimization_result['suggestions'])} suggestions generated")
+
+        # Print top suggestions
+        for i, suggestion in enumerate(optimization_result['suggestions'][:3], 1):
+            print(f"   {i}. {suggestion['type']}: {suggestion['details']}")
+
+        # Save optimization results
+        optimization_result["test_results"] = test_results
+        return optimization_result
+    else:
+        print(f"   ⚠️  Optimization failed: {optimization_result['error']}")
+        return test_results
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Multi-Agent Coder")
@@ -115,7 +169,7 @@ if __name__ == "__main__":
 
 
     parser.add_argument("--language", choices=["python", "javascript", "java", "csharp"], default="python", help="Programming language to use")
-    parser.add_argument("--test-type", choices=["basic", "unit", "integration", "performance"], default="basic", help="Type of testing to perform")
+    parser.add_argument("--test-type", choices=["basic", "unit", "integration", "performance", "coverage", "security"], default="basic", help="Type of testing to perform")
 
     parser.add_argument("--branch", help="Git branch to create and push to")
     parser.add_argument("--push", action="store_true", help="Push changes to remote repository")

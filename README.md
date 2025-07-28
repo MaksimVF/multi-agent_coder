@@ -2,7 +2,7 @@
 
 # Multi-Agent Coder
 
-A multi-agent system for coding tasks with three agents: Analyst, Developer, and Tester.
+A multi-agent system for coding tasks with five agents: Analyst, Developer, Tester, Optimizer, and Researcher.
 
 ## Features
 
@@ -13,6 +13,9 @@ A multi-agent system for coding tasks with three agents: Analyst, Developer, and
 - **Multi-language Support**: Python, JavaScript, Java, C#
 - **Version Control Integration**: Automatically commits generated code to Git
 - Uses asyncio for parallel execution
+- **Optimizer**: Analyzes all agents' work and suggests improvements
+- **Researcher**: Fetches documentation, examples, and best practices from the web
+- **Self-Improvement**: Optimizer logs improvements and learns over time
 - Simple CLI interface
 
 ## Installation
@@ -66,12 +69,14 @@ This will:
 
 ### Advanced Testing Features
 
-The system supports different types of testing:
+The system supports comprehensive testing capabilities with multiple test types:
 
 - **Basic testing** (default): Simple execution test
-- **Unit testing**: Creates and runs unit tests (Python only for now)
-- **Integration testing**: Tests component interactions
-- **Performance testing**: Measures execution time
+- **Unit testing**: Creates and runs comprehensive unit tests with mocking (Python only)
+- **Integration testing**: Tests component interactions and data flow
+- **Performance testing**: Measures execution time and memory usage
+- **Coverage testing**: Measures code coverage percentage
+- **Security testing**: Detects common security vulnerabilities
 
 Use the `--test-type` parameter:
 
@@ -84,29 +89,65 @@ python main.py --task "Write a function to add two numbers" --test-type performa
 
 # Integration testing
 python main.py --task "Write a function to add two numbers" --test-type integration
+
+# Coverage testing
+python main.py --task "Write a function to add two numbers" --test-type coverage
+
+# Security testing
+python main.py --task "Write a function to add two numbers" --test-type security
 ```
 
-Example output:
+Example output with enhanced metrics:
 
 ```
 📋 Final Results:
-1. ✅ Passed: Define function signature and parameters
-2. ✅ Passed: Implement core function logic
-3. ✅ Passed: Handle file operations safely
-4. ✅ Passed: Add input validation and error handling
-5. ✅ Passed: Write comprehensive docstring with examples
-6. ✅ Passed: Add type hints and annotations
-   Performance: 25.37 ms
+1. ✅ Passed: Define function signature and parameters (basic)
+2. ✅ Passed: Implement core function logic (unit)
+3. ✅ Passed: Handle file operations safely (integration)
+4. ✅ Passed: Add input validation and error handling (performance)
+   📊 Performance: 12.45 ms
+   📊 Memory Usage: 1024.00 KB
+5. ✅ Passed: Write comprehensive docstring with examples (coverage)
+   📊 Coverage: 95.2% (40/42 lines)
+6. ✅ Passed: Add type hints and annotations (security)
+   🔒 Security Issues: 0 found
 ```
 
 ### Testing Features Details
 
-1. **Unit Testing**: Automatically generates and runs unit tests for Python code
-2. **Performance Testing**: Measures execution time in milliseconds
-3. **Integration Testing**: Tests interactions between components
-4. **Error Handling**: Provides detailed error messages for failed tests
+1. **Unit Testing**: Automatically generates comprehensive unit tests with:
+   - Basic functionality tests
+   - Edge case testing
+   - Error handling verification
+   - Mocking capabilities for dependencies
 
-All test results are saved to `results.json` with detailed information about each test case.
+2. **Performance Testing**: Measures key performance metrics:
+   - Execution time in milliseconds
+   - Memory usage in kilobytes
+   - Timeout detection
+
+3. **Integration Testing**: Verifies component interactions:
+   - Tests how functions work together
+   - Validates data flow through the system
+   - Verifies module integration
+
+4. **Coverage Testing**: Provides code coverage analysis:
+   - Measures percentage of code covered
+   - Reports covered vs total lines
+   - Identifies untested code paths
+
+5. **Security Testing**: Detects common vulnerabilities:
+   - eval() usage detection
+   - Hardcoded credential detection
+   - SQL injection patterns
+   - Other security anti-patterns
+
+6. **Error Handling**: Enhanced error reporting:
+   - Detailed error messages
+   - Full traceback information
+   - Standard output/error separation
+
+All test results are saved to `results.json` with comprehensive metrics for each test case.
 
 ```
 🔍 Analyst is analyzing the task...
@@ -139,6 +180,8 @@ Identified 4 subtasks:
 - `main.py`: Entry point with CLI interface and language support
 - `analyst.py`: Analyst agent implementation
 - `developer.py`: Developer agent with multi-language code generation
+- `optimizer.py`: Optimizer agent for code analysis and improvement
+- `researcher.py`: Researcher agent for web research and documentation
 - `tester.py`: Tester agent with multi-language testing capabilities
 
 ## Supported Languages
@@ -150,11 +193,14 @@ Identified 4 subtasks:
 
 ## Future Improvements
 
-- Add more sophisticated task analysis
+- Add more sophisticated task analysis with AI/ML
 - Enhance feedback loop for non-Python languages
-- Improve Java and C# testing support
-- Integrate with version control systems
-- Add more comprehensive testing capabilities
+- Improve Java and C# testing support with native test frameworks
+- Add support for additional languages (Go, Rust, etc.)
+- Integrate with CI/CD pipelines for automated testing
+- Add test result visualization and reporting
+- Implement property-based testing
+- Add support for test-driven development (TDD) workflows
 
 ## License
 
