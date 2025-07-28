@@ -35,6 +35,25 @@ async def test_llm_agents():
     print(f"   Generated {len(subtasks)} subtasks:")
     for i, subtask in enumerate(subtasks[:3], 1):
         print(f"   {i}. {subtask.get('description', 'Unknown')}")
+        if "expected_output" in subtask:
+            print(f"      - Expected: {subtask['expected_output']}")
+        if "difficulty" in subtask:
+            print(f"      - Difficulty: {subtask['difficulty']}")
+        if "required_skills" in subtask and subtask["required_skills"]:
+            print(f"      - Skills: {', '.join(subtask['required_skills'])}")
+
+    # Test enhanced ML analysis
+    print("\n   Testing ML analysis...")
+    task_data = {"description": task_description, "subtasks": subtasks}
+    ml_analysis = await analyst.perform_ml_analysis(task_data)
+    print(f"   ML Analysis: {ml_analysis.get('sentiment', 'neutral')} sentiment, {ml_analysis.get('complexity', 'medium')} complexity")
+
+    # Test embedding and similarity
+    print("\n   Testing embedding and similarity...")
+    embedding = await analyst.generate_task_embedding(task_description)
+    print(f"   Generated embedding with {len(embedding)} dimensions")
+    similar_tasks = await analyst.identify_similar_tasks(embedding)
+    print(f"   Found {len(similar_tasks)} similar tasks")
 
     # Test Developer
     print("\n2. Testing Developer...")
