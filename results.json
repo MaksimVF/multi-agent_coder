@@ -1,44 +1,32 @@
 [
   {
-    "description": "Performance test",
-    "passed": true,
-    "output": "",
-    "performance": {
-      "execution_time_ms": 37.261962890625
-    }
-  },
-  {
-    "description": "Performance test",
+    "description": "Define function signature and parameters",
     "passed": false,
-    "error": "  File \"/tmp/tmpuxeuk05h.py\", line 12\n    return a +  # Syntax error for testing\n                ^^^^^^^^^^^^^^^^^^^^^^^^^^^\nSyntaxError: invalid syntax\n"
+    "error": "E\n======================================================================\nERROR: /tmp/tmpab3yb4ub (unittest.loader._FailedTest./tmp/tmpab3yb4ub)\n----------------------------------------------------------------------\nImportError: Failed to import test module: /tmp/tmpab3yb4ub\nTraceback (most recent call last):\n  File \"/openhands/micromamba/envs/openhands/lib/python3.12/unittest/loader.py\", line 137, in loadTestsFromName\n    module = __import__(module_name)\n             ^^^^^^^^^^^^^^^^^^^^^^^\nModuleNotFoundError: No module named '/tmp/tmpab3yb4ub'\n\n\n----------------------------------------------------------------------\nRan 1 test in 0.000s\n\nFAILED (errors=1)\n"
   },
   {
-    "description": "Performance test",
-    "passed": true,
-    "output": "",
-    "performance": {
-      "execution_time_ms": 28.532981872558594
-    }
-  },
-  {
-    "description": "Performance test",
+    "description": "Implement core function logic",
     "passed": false,
-    "error": "  File \"/tmp/tmpwgqwj_cr.py\", line 17\n    return a +  # Another syntax error for testing\n                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nSyntaxError: invalid syntax\n"
+    "error": "E\n======================================================================\nERROR: /tmp/tmpjav3zlcb (unittest.loader._FailedTest./tmp/tmpjav3zlcb)\n----------------------------------------------------------------------\nImportError: Failed to import test module: /tmp/tmpjav3zlcb\nTraceback (most recent call last):\n  File \"/openhands/micromamba/envs/openhands/lib/python3.12/unittest/loader.py\", line 137, in loadTestsFromName\n    module = __import__(module_name)\n             ^^^^^^^^^^^^^^^^^^^^^^^\nModuleNotFoundError: No module named '/tmp/tmpjav3zlcb'\n\n\n----------------------------------------------------------------------\nRan 1 test in 0.000s\n\nFAILED (errors=1)\n"
   },
   {
-    "description": "Performance test",
-    "passed": true,
-    "output": "",
-    "performance": {
-      "execution_time_ms": 24.921178817749023
-    }
+    "description": "Handle file operations safely",
+    "passed": false,
+    "error": "E\n======================================================================\nERROR: /tmp/tmp5ew4sob4 (unittest.loader._FailedTest./tmp/tmp5ew4sob4)\n----------------------------------------------------------------------\nImportError: Failed to import test module: /tmp/tmp5ew4sob4\nTraceback (most recent call last):\n  File \"/openhands/micromamba/envs/openhands/lib/python3.12/unittest/loader.py\", line 137, in loadTestsFromName\n    module = __import__(module_name)\n             ^^^^^^^^^^^^^^^^^^^^^^^\nModuleNotFoundError: No module named '/tmp/tmp5ew4sob4'\n\n\n----------------------------------------------------------------------\nRan 1 test in 0.000s\n\nFAILED (errors=1)\n"
   },
   {
-    "description": "Performance test",
-    "passed": true,
-    "output": "",
-    "performance": {
-      "execution_time_ms": 27.296066284179688
-    }
+    "description": "Add input validation and error handling",
+    "passed": false,
+    "error": "E\n======================================================================\nERROR: /tmp/tmpgp69yj0u (unittest.loader._FailedTest./tmp/tmpgp69yj0u)\n----------------------------------------------------------------------\nImportError: Failed to import test module: /tmp/tmpgp69yj0u\nTraceback (most recent call last):\n  File \"/openhands/micromamba/envs/openhands/lib/python3.12/unittest/loader.py\", line 137, in loadTestsFromName\n    module = __import__(module_name)\n             ^^^^^^^^^^^^^^^^^^^^^^^\nModuleNotFoundError: No module named '/tmp/tmpgp69yj0u'\n\n\n----------------------------------------------------------------------\nRan 1 test in 0.000s\n\nFAILED (errors=1)\n"
+  },
+  {
+    "description": "Write comprehensive docstring with examples",
+    "passed": false,
+    "error": "E\n======================================================================\nERROR: /tmp/tmp3ae5zo0l (unittest.loader._FailedTest./tmp/tmp3ae5zo0l)\n----------------------------------------------------------------------\nImportError: Failed to import test module: /tmp/tmp3ae5zo0l\nTraceback (most recent call last):\n  File \"/openhands/micromamba/envs/openhands/lib/python3.12/unittest/loader.py\", line 137, in loadTestsFromName\n    module = __import__(module_name)\n             ^^^^^^^^^^^^^^^^^^^^^^^\nModuleNotFoundError: No module named '/tmp/tmp3ae5zo0l'\n\n\n----------------------------------------------------------------------\nRan 1 test in 0.000s\n\nFAILED (errors=1)\n"
+  },
+  {
+    "description": "Add type hints and annotations",
+    "passed": false,
+    "error": "E\n======================================================================\nERROR: /tmp/tmpb7yjfdjh (unittest.loader._FailedTest./tmp/tmpb7yjfdjh)\n----------------------------------------------------------------------\nImportError: Failed to import test module: /tmp/tmpb7yjfdjh\nTraceback (most recent call last):\n  File \"/openhands/micromamba/envs/openhands/lib/python3.12/unittest/loader.py\", line 137, in loadTestsFromName\n    module = __import__(module_name)\n             ^^^^^^^^^^^^^^^^^^^^^^^\nModuleNotFoundError: No module named '/tmp/tmpb7yjfdjh'\n\n\n----------------------------------------------------------------------\nRan 1 test in 0.000s\n\nFAILED (errors=1)\n"
   }
 ]
