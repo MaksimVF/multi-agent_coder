@@ -1,0 +1,50 @@
+
+
+
+version: '3.8'
+
+services:
+  redis:
+    image: redis:latest
+    container_name: multi_agent_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - agent_network
+
+  weaviate:
+    image: semitechnologies/weaviate:latest
+    container_name: multi_agent_weaviate
+    ports:
+      - "8080:8080"
+    environment:
+      - QUERY_DEFAULTS_LIMIT=25
+      - AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED=true
+      - PERSISTENCE_DATA_PATH=/var/lib/weaviate
+      - DEFAULT_VECTORIZER_MODULE=text2vec-transformers
+      - ENABLE_MODULES=text2vec-transformers
+      - TRANSFORMERS_INFERENCE_API=http://transformers-inference:8080
+    volumes:
+      - weaviate_data:/var/lib/weaviate
+    networks:
+      - agent_network
+
+  transformers-inference:
+    image: semitechnologies/transformers-inference:latest
+    container_name: multi_agent_transformers
+    environment:
+      - ENABLE_CUDA=0  # Set to 1 if GPU is available
+    networks:
+      - agent_network
+
+volumes:
+  redis_data:
+  weaviate_data:
+
+networks:
+  agent_network:
+    driver: bridge
+
+
