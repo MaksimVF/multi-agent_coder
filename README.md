@@ -1,207 +1,180 @@
 
 
+
 # Multi-Agent Coder
 
-A multi-agent system for coding tasks with five agents: Analyst, Developer, Tester, Optimizer, and Researcher.
+**Advanced AI-Powered Code Generation System**
+
+## Overview
+
+Multi-Agent Coder is a sophisticated AI-driven system that leverages multiple intelligent agents to analyze, develop, test, and optimize code. The system uses LLM (Large Language Model) integration through LiteLLM and coordinates agents using LangGraph for efficient workflow management.
 
 ## Features
 
-- **Analyst**: Breaks down tasks into subtasks
-- **Developer**: Writes code for each subtask in multiple languages
-- **Tester**: Tests the code and provides feedback in the appropriate language
-- **Feedback Loop**: Automatically fixes failed tests (up to 2 retries)
-- **Multi-language Support**: Python, JavaScript, Java, C#
-- **Version Control Integration**: Automatically commits generated code to Git
-- Uses asyncio for parallel execution
-- **Optimizer**: Analyzes all agents' work and suggests improvements
-- **Researcher**: Fetches documentation, examples, and best practices from the web
-- **Self-Improvement**: Optimizer logs improvements and learns over time
-- Simple CLI interface
+### Core Agents
 
-## Installation
+1. **Analyst Agent**: Advanced task analysis with AI/ML capabilities
+   - Detailed subtask breakdown with metadata
+   - Machine learning analysis for task assessment
+   - Embedding generation and similarity search
+   - Risk assessment and skill requirements identification
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/MaksimVF/multi-agent_coder.git
-   cd multi-agent_coder
-   ```
+2. **Developer Agent**: Intelligent code generation
+   - Context-aware code generation
+   - Multiple implementation approaches
+   - Error handling and edge case management
 
-2. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
+3. **Tester Agent**: Comprehensive testing capabilities
+   - Unit test generation
+   - Test execution and validation
+   - Test coverage analysis
 
-## Usage
+4. **Optimizer Agent**: Code optimization and enhancement
+   - Performance optimization
+   - Code quality improvement
+   - Best practice implementation
 
-Run the system with a task description and optional language:
+5. **Researcher Agent**: Web research and documentation
+   - Online information retrieval
+   - Documentation generation
+   - Best practice research
 
-```bash
-# Default (Python)
-python main.py --task "Write a function to add two numbers"
+### Advanced Capabilities
 
-# JavaScript
-python main.py --task "Write a function to add two numbers" --language javascript
-
-# Java
-python main.py --task "Write a function to add two numbers" --language java
-
-# C#
-python main.py --task "Write a function to add two numbers" --language csharp
-```
-
-### Version Control Features
-
-Create a new Git branch and push changes:
-
-```bash
-python main.py --task "Write a function to add two numbers" --branch feature/add-function --push
-```
-
-This will:
-1. Initialize Git repo if not already initialized
-2. Set up Git config
-3. Commit the generated code
-4. Create and checkout a new branch
-5. Push changes to the remote repository
-
-
-
-
-### Advanced Testing Features
-
-The system supports comprehensive testing capabilities with multiple test types:
-
-- **Basic testing** (default): Simple execution test
-- **Unit testing**: Creates and runs comprehensive unit tests with mocking (Python only)
-- **Integration testing**: Tests component interactions and data flow
-- **Performance testing**: Measures execution time and memory usage
-- **Coverage testing**: Measures code coverage percentage
-- **Security testing**: Detects common security vulnerabilities
-
-Use the `--test-type` parameter:
-
-```bash
-# Unit testing
-python main.py --task "Write a function to add two numbers" --test-type unit
-
-# Performance testing
-python main.py --task "Write a function to add two numbers" --test-type performance
-
-# Integration testing
-python main.py --task "Write a function to add two numbers" --test-type integration
-
-# Coverage testing
-python main.py --task "Write a function to add two numbers" --test-type coverage
-
-# Security testing
-python main.py --task "Write a function to add two numbers" --test-type security
-```
-
-Example output with enhanced metrics:
-
-```
-📋 Final Results:
-1. ✅ Passed: Define function signature and parameters (basic)
-2. ✅ Passed: Implement core function logic (unit)
-3. ✅ Passed: Handle file operations safely (integration)
-4. ✅ Passed: Add input validation and error handling (performance)
-   📊 Performance: 12.45 ms
-   📊 Memory Usage: 1024.00 KB
-5. ✅ Passed: Write comprehensive docstring with examples (coverage)
-   📊 Coverage: 95.2% (40/42 lines)
-6. ✅ Passed: Add type hints and annotations (security)
-   🔒 Security Issues: 0 found
-```
-
-### Testing Features Details
-
-1. **Unit Testing**: Automatically generates comprehensive unit tests with:
-   - Basic functionality tests
-   - Edge case testing
-   - Error handling verification
-   - Mocking capabilities for dependencies
-
-2. **Performance Testing**: Measures key performance metrics:
-   - Execution time in milliseconds
-   - Memory usage in kilobytes
-   - Timeout detection
-
-3. **Integration Testing**: Verifies component interactions:
-   - Tests how functions work together
-   - Validates data flow through the system
-   - Verifies module integration
-
-4. **Coverage Testing**: Provides code coverage analysis:
-   - Measures percentage of code covered
-   - Reports covered vs total lines
-   - Identifies untested code paths
-
-5. **Security Testing**: Detects common vulnerabilities:
-   - eval() usage detection
-   - Hardcoded credential detection
-   - SQL injection patterns
-   - Other security anti-patterns
-
-6. **Error Handling**: Enhanced error reporting:
-   - Detailed error messages
-   - Full traceback information
-   - Standard output/error separation
-
-All test results are saved to `results.json` with comprehensive metrics for each test case.
-
-```
-🔍 Analyst is analyzing the task...
-Analyzing task: Write a function to add two numbers
-Identified 4 subtasks:
-  - Define function signature
-  - Implement function logic
-  - Add input validation
-  - Write docstring
-
-💻 Developer is working on the code (python)...
-
-🧪 Tester is testing the code...
-✅ Test passed for code: Define function signature
-✅ Test passed for code: Implement function logic
-✅ Test passed for code: Add input validation
-✅ Test passed for code: Write docstring
-
-📋 Final Results:
-1. ✅ Passed: Define function signature
-2. ✅ Passed: Implement function logic
-3. ✅ Passed: Add input validation
-4. ✅ Passed: Write docstring
-
-💾 Results saved to results.json
-```
+- **LLM Integration**: All agents leverage language models for intelligent decision making
+- **LangGraph Workflow**: Coordinated agent collaboration using graph-based workflows
+- **Mock Mode**: Graceful fallback when no API key is available
+- **CI/CD Integration**: Automated testing and deployment pipeline
 
 ## Architecture
 
-- `main.py`: Entry point with CLI interface and language support
-- `analyst.py`: Analyst agent implementation
-- `developer.py`: Developer agent with multi-language code generation
-- `optimizer.py`: Optimizer agent for code analysis and improvement
-- `researcher.py`: Researcher agent for web research and documentation
-- `tester.py`: Tester agent with multi-language testing capabilities
+```
+[User Task] → [Analyst] → [Developer] → [Tester] → [Optimizer] → [Final Code]
+               ↑            ↑            ↑            ↑
+              ML           LLM          LLM          LLM
+            Analysis      Code Gen     Testing      Optimization
+```
 
-## Supported Languages
+## Installation
 
-- **Python**: Tested with python command
-- **JavaScript**: Tested with node command
-- **Java**: Requires javac and java commands (compilation + execution)
-- **C#**: Requires dotnet command (basic support)
+```bash
+# Clone the repository
+git clone https://github.com/MaksimVF/multi-agent_coder.git
+cd multi-agent_coder
 
-## Future Improvements
+# Install dependencies
+pip install -r requirements.txt
 
-- Add more sophisticated task analysis with AI/ML
-- Enhance feedback loop for non-Python languages
-- Improve Java and C# testing support with native test frameworks
-- Add support for additional languages (Go, Rust, etc.)
-- Integrate with CI/CD pipelines for automated testing
-- Add test result visualization and reporting
-- Implement property-based testing
-- Add support for test-driven development (TDD) workflows
+# Set up environment variables (optional for LLM access)
+export OPENAI_API_KEY='your-api-key'
+export LITELLM_API_KEY='your-api-key'
+```
+
+## Usage
+
+### Basic Usage
+
+```bash
+python main.py "Create a Python function to calculate factorial"
+```
+
+### Advanced Usage
+
+```python
+from analyst import Analyst
+from developer import Developer
+from tester import Tester
+from optimizer import Optimizer
+import asyncio
+
+async def main():
+    # Initialize agents
+    analyst = Analyst(temperature=0.5)
+    developer = Developer(temperature=0.7)
+    tester = Tester(temperature=0.3)
+    optimizer = Optimizer(temperature=0.5)
+
+    # Analyze task
+    task = "Create a Python function to calculate factorial"
+    subtasks = await analyst.analyze_task(task)
+
+    # Develop code
+    code_artifacts = []
+    for subtask in subtasks:
+        code = await developer.develop_code(subtask, "python")
+        code_artifacts.append(code)
+
+    # Test code
+    test_results = []
+    for code in code_artifacts:
+        tests = await tester.generate_tests(code)
+        test_results.append(tests)
+
+    # Optimize code
+    optimized_code = []
+    for code in code_artifacts:
+        optimized = await optimizer.optimize_code(code)
+        optimized_code.append(optimized)
+
+    return optimized_code
+
+# Run the workflow
+result = asyncio.run(main())
+```
+
+## Testing
+
+Run the comprehensive test suite:
+
+```bash
+python test_llm_agents.py
+```
+
+## CI/CD
+
+The project includes a GitHub Actions workflow for automated testing:
+
+- Python version matrix testing (3.9, 3.10, 3.11)
+- Linting with flake8
+- Code formatting with black
+- Security scanning with bandit
+
+## Configuration
+
+Create a `.env` file for LLM configuration:
+
+```
+OPENAI_API_KEY=your_openai_key
+LITELLM_API_KEY=your_litellm_key
+MODEL=gpt-4o
+TEMPERATURE=0.7
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/new-feature`)
+3. Commit your changes (`git commit -am 'Add new feature'`)
+4. Push to the branch (`git push origin feature/new-feature`)
+5. Create a new Pull Request
 
 ## License
 
-MIT
+This project is licensed under the MIT License.
+
+## Roadmap
+
+- [x] LLM integration for all agents
+- [x] LangGraph workflow coordination
+- [x] Advanced task analysis with ML
+- [x] CI/CD pipeline integration
+- [ ] Enhanced error handling and recovery
+- [ ] Multi-language support
+- [ ] Performance benchmarking
+- [ ] Cloud deployment templates
+
+## Contact
+
+For questions or support, please open an issue on GitHub.
+
+
