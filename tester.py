@@ -92,23 +92,29 @@ class Tester(BaseLLMAgent):
         - test_strategy: Brief explanation of the testing approach
         """
 
-        response = await self.generate_response(prompt, self.system_message)
-
         try:
-            test_cases = json.loads(response)
-            return test_cases
-        except json.JSONDecodeError:
-            # Fallback: extract test cases from response
+            response = await self.generate_response(prompt, self.system_message)
+            try:
+                test_cases = json.loads(response)
+                return test_cases
+            except json.JSONDecodeError:
+                # Fallback: extract test cases from response
+                return {
+                    "test_cases": [
+                        {
+                            "description": "Basic functionality test",
+                            "input": "standard input",
+                            "expected_output": "expected result",
+                            "type": "unit"
+                        }
+                    ],
+                    "test_strategy": "Basic testing approach"
+                }
+        except Exception as e:
             return {
-                "test_cases": [
-                    {
-                        "description": "Basic functionality test",
-                        "input": "standard input",
-                        "expected_output": "expected result",
-                        "type": "unit"
-                    }
-                ],
-                "test_strategy": "Basic testing approach"
+                "test_cases": [],
+                "error": str(e),
+                "traceback": traceback.format_exc()
             }
 
 
