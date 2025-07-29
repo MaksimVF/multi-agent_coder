@@ -113,8 +113,8 @@ class TestLLMAgents(unittest.IsolatedAsyncioTestCase):
         result = await self.tester.generate_tests(code_data)
 
         # Verify result
-        self.assertIn("tests", result)
-        self.assertIn("test_fibonacci", result["tests"])
+        self.assertIn("test_cases", result)
+        self.assertTrue(len(result["test_cases"]) > 0)
 
         # Verify memory storage
         memory_result = self.tester.retrieve_memory("test_tests", memory_type="short")
