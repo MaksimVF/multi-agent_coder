@@ -4,7 +4,6 @@
 import os
 import json
 import redis
-import weaviate
 import asyncio
 from typing import Any, Dict, List, Optional
 from datetime import datetime, timedelta
@@ -53,6 +52,7 @@ class MemoryManager:
 
         # Initialize Weaviate connection
         try:
+            import weaviate
             self.weaviate_client = weaviate.Client(weaviate_url)
             self._setup_weaviate_schema()
         except Exception as e:
@@ -239,7 +239,7 @@ class MemoryManager:
             print(f"Error retrieving from Weaviate: {e}")
             return []
 
-    def consolidate_memory(self, task_id: str, agent: str) -> None:
+    def consolidate_memory(self, task_id: str, agent: str = "unknown") -> None:
         """
         Consolidate short-term memory to long-term memory for a task.
 

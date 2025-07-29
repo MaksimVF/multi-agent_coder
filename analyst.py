@@ -12,9 +12,9 @@ from base_llm_agent import BaseLLMAgent
 class Analyst(BaseLLMAgent):
     """LLM-powered Analyst agent for task analysis and breakdown."""
 
-    def __init__(self, temperature: float = 0.5):
+    def __init__(self, temperature: float = 0.5, memory_manager: Optional["MemoryManager"] = None):
         """Initialize the Analyst agent."""
-        super().__init__(temperature=temperature)
+        super().__init__(temperature=temperature, memory_manager=memory_manager)
         self.system_message = """You are an expert task analyst. Your job is to break down complex tasks into manageable subtasks with detailed analysis."""
 
     async def analyze_task(self, task_description: str) -> List[Dict[str, Any]]:

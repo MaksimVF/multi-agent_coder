@@ -21,6 +21,26 @@ try:
     from langgraph import AgentGraph, AgentNode
 except ImportError:
     print("Warning: langgraph not installed. Please install with 'pip install langgraph'")
+    # Fallback to simple graph implementation
+    class AgentGraph:
+        def __init__(self):
+            self.nodes = {}
+            self.edges = []
+
+        def add_node(self, node):
+            self.nodes[node.name] = node
+
+        def add_edge(self, source, target):
+            self.edges.append((source, target))
+
+        async def execute(self, start_node, data):
+            # Simple execution - just return the data
+            return {"status": "completed", "results": data}
+
+    class AgentNode:
+        def __init__(self, agent_name, agent_instance):
+            self.name = agent_name
+            self.agent = agent_instance
 
 # Import memory manager
 try:

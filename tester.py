@@ -16,22 +16,23 @@ import unittest
 
 from unittest.mock import Mock, patch
 import json
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 from base_llm_agent import BaseLLMAgent
 
 class Tester(BaseLLMAgent):
     """LLM-powered Tester agent for code testing and validation."""
 
-    def __init__(self, model: str = "gpt-4o", temperature: float = 0.3):
+    def __init__(self, model: str = "gpt-4o", temperature: float = 0.3, memory_manager: Optional["MemoryManager"] = None):
         """
         Initialize the LLM-powered Tester.
 
         Args:
             model: LLM model to use
             temperature: Creativity level for LLM
+            memory_manager: Memory manager for agent memory
         """
-        super().__init__(model=model, temperature=temperature)
+        super().__init__(model=model, temperature=temperature, memory_manager=memory_manager)
 
         # Tester-specific configuration
         self.system_message = (
@@ -73,6 +74,7 @@ class Tester(BaseLLMAgent):
                 "traceback": traceback.format_exc()
             }
 
+
     async def generate_test_cases(self, code: str, language: str = "python") -> Dict[str, Any]:
         """Generate test cases using LLM."""
         prompt = f"""
@@ -109,7 +111,15 @@ class Tester(BaseLLMAgent):
                 "test_strategy": "Basic testing approach"
             }
 
+
+
+    # Alias for generate_test_cases
+    async def generate_tests(self, code_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Generate test cases for the given code."""
+        return await self.generate_test_cases(code_data["code"], code_data.get("language", "python"))
+
     async def process(self, data: Dict[str, Any]) -> Dict[str, Any]:
+
         """Process incoming data for the workflow."""
         if "code" in data and "subtask" in data and "language" in data and "test_type" in data:
             test_result = await self.test_code(
