@@ -53,10 +53,8 @@ async def test_llm_agents():
 
     # Test Researcher
     print("\n4. Testing Researcher...")
-    research_results = await researcher.search_web("Python factorial function")
-    print(f"   Found {len(research_results)} search results:")
-    for i, result in enumerate(research_results[:2], 1):
-        print(f"   {i}. {result.get('title', 'Unknown')}")
+    research_results = await researcher.research_topic("Python factorial function")
+    print(f"   Research completed: {research_results.get('status', 'Unknown')}")
 
     # Test Optimizer
     print("\n5. Testing Optimizer...")
