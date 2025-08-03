@@ -208,7 +208,7 @@ class Tester(BaseLLMAgent):
         return result
 
     def _execute_command(self, command, description, filename=None, cleanup_pattern=None):
-        """Execute a command with the given filename."""
+        """Execute a command with the given filename using enhanced security measures."""
         try:
             # Replace placeholder with actual filename if provided
             if filename:
@@ -216,12 +216,29 @@ class Tester(BaseLLMAgent):
             else:
                 actual_command = command
 
-            # Try to execute the code
+            # Set resource limits for security
+            import resource
+            # Limit CPU time (10 seconds)
+            resource.setrlimit(resource.RLIMIT_CPU, (10, 10))
+            # Limit memory (100MB)
+            resource.setrlimit(resource.RLIMIT_AS, (100 * 1024 * 1024, 100 * 1024 * 1024))
+
+            # Execute in a restricted environment
+            env = os.environ.copy()
+            # Remove sensitive environment variables
+            for var in ['OPENAI_API_KEY', 'LITELLM_API_KEY', 'GITHUB_TOKEN', 'GITLAB_TOKEN']:
+                if var in env:
+                    del env[var]
+
+            # Try to execute the code with strict security
             result = subprocess.run(
                 actual_command,
                 capture_output=True,
                 text=True,
-                timeout=10
+                timeout=10,
+                env=env,
+                # Restrict capabilities - note: this requires proper system configuration
+                # For now, we rely on the restricted environment
             )
 
             # Check if execution was successful
@@ -254,6 +271,13 @@ class Tester(BaseLLMAgent):
                 "error": str(e),
                 "traceback": traceback.format_exc()
             }
+        finally:
+            # Ensure resource limits are reset
+            try:
+                resource.setrlimit(resource.RLIMIT_CPU, (resource.RLIM_INFINITY, resource.RLIM_INFINITY))
+                resource.setrlimit(resource.RLIMIT_AS, (resource.RLIM_INFINITY, resource.RLIM_INFINITY))
+            except:
+                pass
 
     async def _unit_test(self, code, language, description):
         """Create and run comprehensive unit tests."""
@@ -559,7 +583,15 @@ if __name__ == "__main__":
             }
 
     async def _security_test(self, code, language, description):
-        """Run basic security checks."""
+        """Run basic security checks.
+
+        TODO: Enhance security by implementing:
+        1. Docker-based sandboxing for code execution
+        2. Integration with static analysis tools (Bandit, ESLint, etc.)
+        3. Network isolation for executed code
+        4. Filesystem restrictions
+        5. Comprehensive security testing for all supported languages
+        """
         if language == "python":
             try:
                 # Check for common security issues
@@ -588,6 +620,108 @@ if __name__ == "__main__":
 
                 # Check for SQL injection vulnerabilities
                 if re.search(r"\.execute\s*\(.*?\s*\+\s.*?\)", code):
+                    security_issues.append("Potential security issue: SQL injection risk detected")
+
+                if security_issues:
+                    return {
+                        "description": description,
+                        "passed": False,
+                        "error": "Security issues found",
+                        "security_issues": security_issues,
+                        "test_type": "security"
+                    }
+                else:
+                    return {
+                        "description": description,
+                        "passed": True,
+                        "output": "No security issues found",
+                        "test_type": "security"
+                    }
+            except Exception as e:
+                return {
+                    "description": description,
+                    "passed": False,
+                    "error": str(e),
+                    "traceback": traceback.format_exc(),
+                    "test_type": "security"
+                }
+        elif language == "javascript":
+            try:
+                # Check for common JavaScript security issues
+                security_issues = []
+
+                # Check for eval() usage
+                if "eval(" in code:
+                    security_issues.append("Potential security issue: eval() usage detected")
+
+                # Check for innerHTML usage (XSS risk)
+                if ".innerHTML" in code:
+                    security_issues.append("Potential security issue: innerHTML usage detected (XSS risk)")
+
+                # Check for hardcoded credentials
+                import re
+                credential_patterns = [
+                    r"password\s*=\s*['\"][^'\"]*['\"]",
+                    r"secret\s*=\s*['\"][^'\"]*['\"]",
+                    r"api_key\s*=\s*['\"][^'\"]*['\"]",
+                    r"token\s*=\s*['\"][^'\"]*['\"]"
+                ]
+
+                for pattern in credential_patterns:
+                    if re.search(pattern, code, re.IGNORECASE):
+                        security_issues.append(f"Potential security issue: hardcoded credentials detected")
+
+                # Check for SQL injection vulnerabilities
+                if re.search(r"\.query\s*\(.*?\s*\+\s.*?\)", code):
+                    security_issues.append("Potential security issue: SQL injection risk detected")
+
+                if security_issues:
+                    return {
+                        "description": description,
+                        "passed": False,
+                        "error": "Security issues found",
+                        "security_issues": security_issues,
+                        "test_type": "security"
+                    }
+                else:
+                    return {
+                        "description": description,
+                        "passed": True,
+                        "output": "No security issues found",
+                        "test_type": "security"
+                    }
+            except Exception as e:
+                return {
+                    "description": description,
+                    "passed": False,
+                    "error": str(e),
+                    "traceback": traceback.format_exc(),
+                    "test_type": "security"
+                }
+        elif language == "java":
+            try:
+                # Check for common Java security issues
+                security_issues = []
+
+                # Check for Runtime.exec usage
+                if "Runtime.getRuntime().exec" in code:
+                    security_issues.append("Potential security issue: Runtime.exec usage detected")
+
+                # Check for hardcoded credentials
+                import re
+                credential_patterns = [
+                    r"password\s*=\s*['\"][^'\"]*['\"]",
+                    r"secret\s*=\s*['\"][^'\"]*['\"]",
+                    r"api_key\s*=\s*['\"][^'\"]*['\"]",
+                    r"token\s*=\s*['\"][^'\"]*['\"]"
+                ]
+
+                for pattern in credential_patterns:
+                    if re.search(pattern, code, re.IGNORECASE):
+                        security_issues.append(f"Potential security issue: hardcoded credentials detected")
+
+                # Check for SQL injection vulnerabilities
+                if re.search(r"Statement\.executeQuery\s*\(.*?\s*\+\s.*?\)", code):
                     security_issues.append("Potential security issue: SQL injection risk detected")
 
                 if security_issues:
