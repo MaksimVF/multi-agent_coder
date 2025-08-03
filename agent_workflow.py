@@ -93,6 +93,16 @@ class AgentWorkflow:
         self.nodes[agent_name] = node
         self.graph.add_node(node)
 
+    def add_edge(self, source: str, target: str) -> None:
+        """
+        Add a directed edge between two agents in the workflow.
+
+        Args:
+            source: Source agent name
+            target: Target agent name
+        """
+        self.graph.add_edge(source, target)
+
     def set_initial_state(self, task: Dict, task_id: str = None) -> None:
         """
         Set the initial state of the workflow.
