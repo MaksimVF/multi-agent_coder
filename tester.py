@@ -164,48 +164,6 @@ class Tester(BaseLLMAgent):
                 "traceback": traceback.format_exc()
             }
 
-    async def _basic_test(self, code_data, subtask, language):
-        """Run basic execution test."""
-        code = code_data["code"]
-        description = code_data["description"]
-
-        try:
-            # Determine file extension and execution command based on language
-            if language == "python":
-                file_suffix = '.py'
-                command = ['python', '{filename}']
-            elif language == "javascript":
-                file_suffix = '.js'
-                command = ['node', '{filename}']
-            elif language == "java":
-                return await self._java_test(code, description)
-            elif language == "csharp":
-                file_suffix = '.cs'
-                command = ['dotnet', 'run', '--project', '{filename}']
-            else:
-                # Default to Python
-                file_suffix = '.py'
-                command = ['python', '{filename}']
-
-            # Write code to a temporary file and execute
-            with tempfile.NamedTemporaryFile(mode='w', suffix=file_suffix, delete=False) as f:
-                f.write(code)
-                temp_file = f.name
-
-            result = self._execute_command(command, description, temp_file)
-
-            # Clean up
-            os.unlink(temp_file)
-            return result
-
-        except Exception as e:
-            return {
-                "description": description,
-                "passed": False,
-                "error": str(e),
-                "traceback": traceback.format_exc()
-            }
-
     async def _java_test(self, code, description):
         """Test Java code with compilation and execution."""
         file_suffix = '.java'
