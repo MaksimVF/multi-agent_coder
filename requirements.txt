@@ -13,3 +13,6 @@ openai>=1.0  # For OpenAI LLM support
 # Memory and Knowledge Base dependencies
 redis>=4.0  # For short-term memory
 weaviate-client>=3.26.7,<4.0.0  # For long-term memory and knowledge base
+
+# Security and Sandbox dependencies
+docker>=6.0  # For Docker sandbox integration
