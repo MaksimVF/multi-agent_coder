@@ -10,34 +10,57 @@ import time
 import sys
 import traceback
 import importlib.util
+import docker
 from pathlib import Path
 import coverage
 import unittest
 
 from unittest.mock import Mock, patch
 import json
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 from base_llm_agent import BaseLLMAgent
 
 class Tester(BaseLLMAgent):
     """LLM-powered Tester agent for code testing and validation."""
 
-    def __init__(self, model: str = "gpt-4o", temperature: float = 0.3):
+    def __init__(self, model: str = "gpt-4o", temperature: float = 0.3, memory_manager: Optional["MemoryManager"] = None):
         """
         Initialize the LLM-powered Tester.
 
         Args:
             model: LLM model to use
             temperature: Creativity level for LLM
+            memory_manager: Memory manager for agent memory
         """
-        super().__init__(model=model, temperature=temperature)
+        super().__init__(model=model, temperature=temperature, memory_manager=memory_manager)
 
         # Tester-specific configuration
         self.system_message = (
             "You are an expert software tester. Your job is to analyze code, "
             "generate test cases, and validate code quality and correctness."
         )
+
+        # Docker sandbox configuration
+        self.use_docker_sandbox = False
+        self.docker_image = "sandbox-python"
+        self.docker_timeout = 30  # seconds
+        self.docker_memory_limit = "512m"
+        self.docker_cpu_limit = 1.0
+
+        try:
+            import docker
+            self.docker_client = docker.from_env()
+            # Try to ping Docker to verify it's available
+            self.docker_client.ping()
+            self.use_docker_sandbox = True
+            print("Docker available - using sandbox for code execution")
+        except (ImportError, AttributeError, docker.errors.DockerException) as e:
+            print(f"Docker not available, using subprocess: {e}")
+            self.use_docker_sandbox = False
+        except Exception as e:
+            print(f"Error initializing Docker: {e}")
+            self.use_docker_sandbox = False
 
     async def test_code(self, code_data: Dict[str, Any], subtask: Dict[str, Any], language: str = "python", test_type: str = "basic") -> Dict[str, Any]:
         """Test the given code with enhanced testing capabilities."""
@@ -73,6 +96,7 @@ class Tester(BaseLLMAgent):
                 "traceback": traceback.format_exc()
             }
 
+
     async def generate_test_cases(self, code: str, language: str = "python") -> Dict[str, Any]:
         """Generate test cases using LLM."""
         prompt = f"""
@@ -90,26 +114,40 @@ class Tester(BaseLLMAgent):
         - test_strategy: Brief explanation of the testing approach
         """
 
-        response = await self.generate_response(prompt, self.system_message)
-
         try:
-            test_cases = json.loads(response)
-            return test_cases
-        except json.JSONDecodeError:
-            # Fallback: extract test cases from response
+            response = await self.generate_response(prompt, self.system_message)
+            try:
+                test_cases = json.loads(response)
+                return test_cases
+            except json.JSONDecodeError:
+                # Fallback: extract test cases from response
+                return {
+                    "test_cases": [
+                        {
+                            "description": "Basic functionality test",
+                            "input": "standard input",
+                            "expected_output": "expected result",
+                            "type": "unit"
+                        }
+                    ],
+                    "test_strategy": "Basic testing approach"
+                }
+        except Exception as e:
             return {
-                "test_cases": [
-                    {
-                        "description": "Basic functionality test",
-                        "input": "standard input",
-                        "expected_output": "expected result",
-                        "type": "unit"
-                    }
-                ],
-                "test_strategy": "Basic testing approach"
+                "test_cases": [],
+                "error": str(e),
+                "traceback": traceback.format_exc()
             }
 
+
+
+    # Alias for generate_test_cases
+    async def generate_tests(self, code_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Generate test cases for the given code."""
+        return await self.generate_test_cases(code_data["code"], code_data.get("language", "python"))
+
     async def process(self, data: Dict[str, Any]) -> Dict[str, Any]:
+
         """Process incoming data for the workflow."""
         if "code" in data and "subtask" in data and "language" in data and "test_type" in data:
             test_result = await self.test_code(
@@ -121,48 +159,6 @@ class Tester(BaseLLMAgent):
             return {"test_result": test_result}
         else:
             return {"error": "Insufficient data for testing"}
-
-    async def _basic_test(self, code_data, subtask, language):
-        """Run basic execution test."""
-        code = code_data["code"]
-        description = code_data["description"]
-
-        try:
-            # Determine file extension and execution command based on language
-            if language == "python":
-                file_suffix = '.py'
-                command = ['python', '{filename}']
-            elif language == "javascript":
-                file_suffix = '.js'
-                command = ['node', '{filename}']
-            elif language == "java":
-                return await self._java_test(code, description)
-            elif language == "csharp":
-                file_suffix = '.cs'
-                command = ['dotnet', 'run', '--project', '{filename}']
-            else:
-                # Default to Python
-                file_suffix = '.py'
-                command = ['python', '{filename}']
-
-            # Write code to a temporary file and execute
-            with tempfile.NamedTemporaryFile(mode='w', suffix=file_suffix, delete=False) as f:
-                f.write(code)
-                temp_file = f.name
-
-            result = self._execute_command(command, description, temp_file)
-
-            # Clean up
-            os.unlink(temp_file)
-            return result
-
-        except Exception as e:
-            return {
-                "description": description,
-                "passed": False,
-                "error": str(e),
-                "traceback": traceback.format_exc()
-            }
 
     async def _basic_test(self, code_data, subtask, language):
         """Run basic execution test."""
@@ -250,7 +246,7 @@ class Tester(BaseLLMAgent):
         return result
 
     def _execute_command(self, command, description, filename=None, cleanup_pattern=None):
-        """Execute a command with the given filename."""
+        """Execute a command with the given filename using enhanced security measures."""
         try:
             # Replace placeholder with actual filename if provided
             if filename:
@@ -258,12 +254,29 @@ class Tester(BaseLLMAgent):
             else:
                 actual_command = command
 
-            # Try to execute the code
+            # Set resource limits for security
+            import resource
+            # Limit CPU time (10 seconds)
+            resource.setrlimit(resource.RLIMIT_CPU, (10, 10))
+            # Limit memory (500MB)
+            resource.setrlimit(resource.RLIMIT_AS, (500 * 1024 * 1024, 500 * 1024 * 1024))
+
+            # Execute in a restricted environment
+            env = os.environ.copy()
+            # Remove sensitive environment variables
+            for var in ['OPENAI_API_KEY', 'LITELLM_API_KEY', 'GITHUB_TOKEN', 'GITLAB_TOKEN']:
+                if var in env:
+                    del env[var]
+
+            # Try to execute the code with strict security
             result = subprocess.run(
                 actual_command,
                 capture_output=True,
                 text=True,
-                timeout=10
+                timeout=10,
+                env=env,
+                # Restrict capabilities - note: this requires proper system configuration
+                # For now, we rely on the restricted environment
             )
 
             # Check if execution was successful
@@ -296,6 +309,13 @@ class Tester(BaseLLMAgent):
                 "error": str(e),
                 "traceback": traceback.format_exc()
             }
+        finally:
+            # Ensure resource limits are reset
+            try:
+                resource.setrlimit(resource.RLIMIT_CPU, (resource.RLIM_INFINITY, resource.RLIM_INFINITY))
+                resource.setrlimit(resource.RLIMIT_AS, (resource.RLIM_INFINITY, resource.RLIM_INFINITY))
+            except:
+                pass
 
     async def _unit_test(self, code, language, description):
         """Create and run comprehensive unit tests."""
@@ -309,16 +329,24 @@ class Tester(BaseLLMAgent):
                     temp_file.write(test_code.encode('utf-8'))
                     test_path = temp_file.name
 
-                # Run the test
-                result = subprocess.run(
-                    ['python', test_path],
-                    capture_output=True,
-                    text=True,
-                    timeout=10
-                )
+                # Try Docker sandbox first, fallback to subprocess
+                docker_result = self._execute_in_docker_sandbox(test_code, "python")
 
-                # Clean up
-                os.unlink(test_path)
+                if docker_result:
+                    result = docker_result
+                    # Clean up
+                    os.unlink(test_path)
+                else:
+                    # Fallback to subprocess
+                    result = subprocess.run(
+                        ['python', test_path],
+                        capture_output=True,
+                        text=True,
+                        timeout=10
+                    )
+
+                    # Clean up
+                    os.unlink(test_path)
 
                 if result.returncode == 0:
                     return {
@@ -601,7 +629,15 @@ if __name__ == "__main__":
             }
 
     async def _security_test(self, code, language, description):
-        """Run basic security checks."""
+        """Run basic security checks.
+
+        TODO: Enhance security by implementing:
+        1. Docker-based sandboxing for code execution
+        2. Integration with static analysis tools (Bandit, ESLint, etc.)
+        3. Network isolation for executed code
+        4. Filesystem restrictions
+        5. Comprehensive security testing for all supported languages
+        """
         if language == "python":
             try:
                 # Check for common security issues
@@ -655,6 +691,108 @@ if __name__ == "__main__":
                     "traceback": traceback.format_exc(),
                     "test_type": "security"
                 }
+        elif language == "javascript":
+            try:
+                # Check for common JavaScript security issues
+                security_issues = []
+
+                # Check for eval() usage
+                if "eval(" in code:
+                    security_issues.append("Potential security issue: eval() usage detected")
+
+                # Check for innerHTML usage (XSS risk)
+                if ".innerHTML" in code:
+                    security_issues.append("Potential security issue: innerHTML usage detected (XSS risk)")
+
+                # Check for hardcoded credentials
+                import re
+                credential_patterns = [
+                    r"password\s*=\s*['\"][^'\"]*['\"]",
+                    r"secret\s*=\s*['\"][^'\"]*['\"]",
+                    r"api_key\s*=\s*['\"][^'\"]*['\"]",
+                    r"token\s*=\s*['\"][^'\"]*['\"]"
+                ]
+
+                for pattern in credential_patterns:
+                    if re.search(pattern, code, re.IGNORECASE):
+                        security_issues.append(f"Potential security issue: hardcoded credentials detected")
+
+                # Check for SQL injection vulnerabilities
+                if re.search(r"\.query\s*\(.*?\s*\+\s.*?\)", code):
+                    security_issues.append("Potential security issue: SQL injection risk detected")
+
+                if security_issues:
+                    return {
+                        "description": description,
+                        "passed": False,
+                        "error": "Security issues found",
+                        "security_issues": security_issues,
+                        "test_type": "security"
+                    }
+                else:
+                    return {
+                        "description": description,
+                        "passed": True,
+                        "output": "No security issues found",
+                        "test_type": "security"
+                    }
+            except Exception as e:
+                return {
+                    "description": description,
+                    "passed": False,
+                    "error": str(e),
+                    "traceback": traceback.format_exc(),
+                    "test_type": "security"
+                }
+        elif language == "java":
+            try:
+                # Check for common Java security issues
+                security_issues = []
+
+                # Check for Runtime.exec usage
+                if "Runtime.getRuntime().exec" in code:
+                    security_issues.append("Potential security issue: Runtime.exec usage detected")
+
+                # Check for hardcoded credentials
+                import re
+                credential_patterns = [
+                    r"password\s*=\s*['\"][^'\"]*['\"]",
+                    r"secret\s*=\s*['\"][^'\"]*['\"]",
+                    r"api_key\s*=\s*['\"][^'\"]*['\"]",
+                    r"token\s*=\s*['\"][^'\"]*['\"]"
+                ]
+
+                for pattern in credential_patterns:
+                    if re.search(pattern, code, re.IGNORECASE):
+                        security_issues.append(f"Potential security issue: hardcoded credentials detected")
+
+                # Check for SQL injection vulnerabilities
+                if re.search(r"Statement\.executeQuery\s*\(.*?\s*\+\s.*?\)", code):
+                    security_issues.append("Potential security issue: SQL injection risk detected")
+
+                if security_issues:
+                    return {
+                        "description": description,
+                        "passed": False,
+                        "error": "Security issues found",
+                        "security_issues": security_issues,
+                        "test_type": "security"
+                    }
+                else:
+                    return {
+                        "description": description,
+                        "passed": True,
+                        "output": "No security issues found",
+                        "test_type": "security"
+                    }
+            except Exception as e:
+                return {
+                    "description": description,
+                    "passed": False,
+                    "error": str(e),
+                    "traceback": traceback.format_exc(),
+                    "test_type": "security"
+                }
         else:
             return {
                 "description": description,
@@ -662,6 +800,76 @@ if __name__ == "__main__":
                 "error": f"Security testing not yet supported for {language}",
                 "test_type": "security"
             }
+
+    def _execute_in_docker_sandbox(self, code: str, language: str = "python") -> Dict[str, Any]:
+        """Execute code in an isolated Docker container for enhanced security."""
+        if not self.use_docker_sandbox:
+            return None
+
+        try:
+            # Create a temporary file with the code
+            with tempfile.NamedTemporaryFile(mode='w', suffix=f'.{language}', delete=False) as f:
+                f.write(code)
+                temp_file = f.name
+
+            # Determine the Docker command based on language
+            if language == "python":
+                cmd = ["python", os.path.basename(temp_file)]
+                workdir = "/home/sandboxuser/code"
+                file_path = f"/home/sandboxuser/code/{os.path.basename(temp_file)}"
+            elif language == "javascript":
+                cmd = ["node", os.path.basename(temp_file)]
+                workdir = "/home/sandboxuser/code"
+                file_path = f"/home/sandboxuser/code/{os.path.basename(temp_file)}"
+            elif language == "java":
+                # For Java, we need to compile first
+                base_name = os.path.splitext(os.path.basename(temp_file))[0]
+                cmd = ["sh", "-c", f"javac {os.path.basename(temp_file)} && java {base_name}"]
+                workdir = "/home/sandboxuser/code"
+                file_path = f"/home/sandboxuser/code/{os.path.basename(temp_file)}"
+            else:
+                return None  # Fallback to subprocess for unsupported languages
+
+            # Run the container with strict resource limits
+            container = self.docker_client.containers.run(
+                image=self.docker_image,
+                command=cmd,
+                volumes={os.path.dirname(temp_file): {'bind': workdir, 'mode': 'ro'}},
+                working_dir=workdir,
+                mem_limit=self.docker_memory_limit,
+                cpu_period=100000,  # 100ms period
+                cpu_quota=int(self.docker_cpu_limit * 100000),  # CPU limit
+                network_disabled=True,  # Disable network for security
+                auto_remove=True,  # Clean up container after execution
+                detach=False,
+                stdout=True,
+                stderr=True
+            )
+
+            # Process the result
+            result = {
+                "stdout": container.decode('utf-8') if hasattr(container, 'decode') else str(container),
+                "stderr": "",
+                "returncode": 0
+            }
+
+            # Clean up
+            os.unlink(temp_file)
+
+            return result
+
+        except docker.errors.ContainerError as e:
+            return {
+                "stdout": "",
+                "stderr": str(e.stderr.decode('utf-8') if hasattr(e, 'stderr') else str(e)),
+                "returncode": e.exit_status if hasattr(e, 'exit_status') else 1
+            }
+        except docker.errors.DockerException as e:
+            print(f"Docker error: {e}")
+            return None
+        except Exception as e:
+            print(f"Error in Docker execution: {e}")
+            return None
 
     def _generate_python_unit_test(self, code, description):
         """Generate comprehensive Python unit test code."""

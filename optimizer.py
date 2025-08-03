@@ -2,420 +2,341 @@
 
 
 
-import json
+
+
 import os
-import datetime
-from pathlib import Path
-import re
-import ast
-import traceback
-from typing import Dict, Any
-from base_llm_agent import BaseLLMAgent
+from typing import Dict, Any, List, Optional
+import json
+import asyncio
+
+# Import LiteLLM for LLM integration
+try:
+    import litellm
+    from litellm import completion
+except ImportError:
+    print("Warning: litellm not installed. Please install with 'pip install litellm'")
+
+# Import base agent class
+try:
+    from base_llm_agent import BaseLLMAgent
+except ImportError:
+    print("Warning: base_llm_agent not found. Please check the file exists.")
+    class BaseLLMAgent:
+        pass
 
 class Optimizer(BaseLLMAgent):
+    """
+    Optimizer Agent for code optimization and enhancement with Weaviate integration.
 
+    Features:
+    - Code optimization using LLM
+    - Performance improvement
+    - Code quality enhancement
+    - Best practice implementation
+    - Weaviate knowledge base integration
+    - Historical optimization patterns
+    """
 
-    """LLM-powered Optimizer agent for code analysis and improvement."""
-
-    def __init__(self, model: str = "gpt-4o", temperature: float = 0.5):
+    def __init__(
+        self,
+        model: str = "gpt-4o",
+        temperature: float = 0.5,
+        memory_manager: Optional["MemoryManager"] = None,
+    ):
         """
         Initialize the LLM-powered Optimizer.
 
         Args:
             model: LLM model to use
             temperature: Creativity level for LLM
+            memory_manager: Memory manager for Weaviate integration
         """
-        super().__init__(model=model, temperature=temperature)
+        super().__init__(model=model, temperature=temperature, memory_manager=memory_manager)
 
-        # Optimizer-specific configuration
-        self.system_message = (
-            "You are an expert code optimizer. Your job is to analyze code, "
-            "identify performance bottlenecks, and suggest improvements for "
-            "readability, maintainability, and performance."
-        )
+    async def optimize_code(self, code_data: Dict) -> Dict:
+        """
+        Optimize code using LLM and Weaviate knowledge base.
 
-        self.improvements_log = Path("improvements.log")
-        self.history_log = Path("optimizer_history.json")
-        self.researcher = None  # Will be set by main
+        Args:
+            code_data: Code data to optimize
 
-        # Load history
-        self.history = self._load_history()
+        Returns:
+            Optimized code data
+        """
+        # Check Weaviate for similar code patterns
+        similar_patterns = []
+        if self.memory_manager:
+            similar_patterns = self._find_similar_patterns(code_data.get("code", ""))
 
-    def _load_history(self):
-        """Load optimization history."""
-        if self.history_log.exists():
-            try:
-                with open(self.history_log, 'r', encoding='utf-8') as f:
-                    return json.load(f)
-            except:
-                return {}
-        return {}
+        # Build prompt with similar patterns
+        prompt = f"""Optimize the following code for better performance, readability, and maintainability:
 
-    def _save_history(self):
-        """Save optimization history."""
-        try:
-            with open(self.history_log, 'w', encoding='utf-8') as f:
-                json.dump(self.history, f, indent=2)
-        except Exception as e:
-            print(f"Warning: Could not save optimization history: {e}")
+Original Code:
+{code_data.get('code', '')}
 
-    def _log_improvement(self, improvement_type, details, code_sample=None):
-        """Log an improvement suggestion."""
-        try:
-            timestamp = datetime.datetime.now().isoformat()
-            entry = {
-                "timestamp": timestamp,
-                "type": improvement_type,
-                "details": details,
-                "code_sample": code_sample
+{'Similar patterns found in knowledge base:' if similar_patterns else ''}
+{''.join(f'Pattern {i+1}:\n{p["content"]}\n\n' for i, p in enumerate(similar_patterns))}
+
+Provide the optimized version with explanations of the improvements made."""
+
+        result = await self._call_llm(prompt)
+
+        if result.get("success", False):
+            optimized_code = {
+                "original_code": code_data.get("code", ""),
+                "optimized_code": result["response"],
+                "improvements": self._extract_improvements(result["response"]),
+                "description": code_data.get("description", ""),
+                "similar_patterns_used": [p["content"] for p in similar_patterns],
             }
 
-            with open(self.improvements_log, 'a', encoding='utf-8') as f:
-                f.write(json.dumps(entry, indent=2) + "\n\n")
-
-            # Also add to history
-            if "history" not in self.history:
-                self.history["history"] = []
-            self.history["history"].append(entry)
-            self._save_history()
-
-        except Exception as e:
-            print(f"Warning: Could not log improvement: {e}")
-
-    async def analyze_and_optimize(self, task_description, code_data, test_results, language="python"):
-        """Analyze the work of all agents and suggest optimizations."""
-        try:
-            print("🔍 Optimizer is analyzing the results...")
-
-            # Analyze the task and results
-            analysis = {
-                "task": task_description,
-                "language": language,
-                "code_quality": self._analyze_code_quality(code_data),
-                "test_results": self._analyze_test_results(test_results),
-                "performance": self._analyze_performance(test_results),
-                "security": self._analyze_security(test_results),
-                "suggestions": []
-            }
-
-            # Generate suggestions
-            suggestions = self._generate_suggestions(analysis)
-
-            # Research additional improvements
-            research_suggestions = await self._research_improvements(language, task_description)
-
-            # Combine all suggestions
-            all_suggestions = suggestions + research_suggestions
-
-            # Log improvements
-            for suggestion in all_suggestions:
-                self._log_improvement(
-                    suggestion["type"],
-                    suggestion["details"],
-                    suggestion.get("code", None)
+            # Store optimization result in Weaviate
+            if self.memory_manager:
+                self.memory_manager.store_long_term(
+                    code_data.get("code", ""),
+                    metadata={
+                        "optimized_version": result["response"],
+                        "improvements": optimized_code["improvements"],
+                        "description": code_data.get("description", ""),
+                        "type": "code_optimization",
+                    },
+                    agent="optimizer",
+                    task_id=code_data.get("task_id", "unknown"),
+                    importance=0.8,
                 )
 
-            # Return final analysis and suggestions
-            analysis["suggestions"] = all_suggestions
-
+            return optimized_code
+        else:
             return {
-                "success": True,
-                "analysis": analysis,
-                "suggestions": all_suggestions,
-                "final_code": code_data["code"]
+                "original_code": code_data.get("code", ""),
+                "optimized_code": code_data.get("code", ""),
+                "improvements": ["No improvements could be made"],
+                "description": code_data.get("description", ""),
+                "error": result.get("error", "Unknown error"),
             }
 
-        except Exception as e:
+    def _find_similar_patterns(self, code: str, limit: int = 3) -> List[Dict]:
+        """Find similar code patterns in Weaviate."""
+        if not self.memory_manager:
+            return []
+
+        # Use semantic search to find similar patterns
+        return self.memory_manager.retrieve_long_term(
+            code,
+            limit=limit,
+            agent="optimizer",
+        )
+
+    def _extract_improvements(self, response: str) -> List[str]:
+        """Extract improvement explanations from LLM response."""
+        lines = response.split('\n')
+        improvements = []
+
+        # Look for lines that start with improvement indicators
+        for line in lines:
+            if any(
+                line.lower().startswith(prefix)
+                for prefix in [
+                    "- ", "* ", "• ", "improvement:", "optimization:", "change:", "enhancement:"
+                ]
+            ):
+                improvements.append(line.strip())
+
+        return improvements if improvements else ["General code quality improvements"]
+
+    async def review_code_quality(self, code_data: Dict) -> Dict:
+        """
+        Review code quality and provide suggestions using Weaviate knowledge.
+
+        Args:
+            code_data: Code data to review
+
+        Returns:
+            Code quality review
+        """
+        # Get historical reviews for similar code
+        historical_reviews = []
+        if self.memory_manager:
+            historical_reviews = self.memory_manager.retrieve_long_term(
+                code_data.get("code", ""),
+                limit=2,
+                agent="optimizer",
+            )
+
+        prompt = f"""Review the following code for quality, performance, and best practices:
+
+Code to Review:
+{code_data.get('code', '')}
+
+{'Historical reviews for similar code:' if historical_reviews else ''}
+{''.join(f'Review {i+1}:\n{r["content"]}\n\n' for i, r in enumerate(historical_reviews))}
+
+Provide a detailed analysis including:
+1. Code quality score (1-10)
+2. Performance analysis
+3. Best practice compliance
+4. Specific improvement suggestions"""
+
+        result = await self._call_llm(prompt)
+
+        if result.get("success", False):
+            review_data = {
+                "code": code_data.get("code", ""),
+                "review": result["response"],
+                "score": self._extract_score(result["response"]),
+                "description": code_data.get("description", ""),
+                "historical_references": [r["content"] for r in historical_reviews],
+            }
+
+            # Store review in Weaviate
+            if self.memory_manager:
+                self.memory_manager.store_long_term(
+                    result["response"],
+                    metadata={
+                        "code": code_data.get("code", ""),
+                        "score": review_data["score"],
+                        "description": code_data.get("description", ""),
+                        "type": "code_review",
+                    },
+                    agent="optimizer",
+                    task_id=code_data.get("task_id", "unknown"),
+                    importance=0.7,
+                )
+
+            return review_data
+        else:
             return {
-                "success": False,
-                "error": str(e),
-                "traceback": traceback.format_exc()
+                "code": code_data.get("code", ""),
+                "review": "Could not complete review",
+                "score": 5,
+                "description": code_data.get("description", ""),
+                "error": result.get("error", "Unknown error"),
             }
 
-    def _analyze_code_quality(self, code_data):
-        """Analyze code quality."""
-        try:
-            code = code_data["code"]
-            analysis = {
-                "length": len(code),
-                "lines": len(code.split('\n')),
-                "functions": 0,
-                "classes": 0,
-                "comments": 0,
-                "issues": []
-            }
+    def _extract_score(self, response: str) -> int:
+        """Extract quality score from review response."""
+        import re
+        match = re.search(r'quality score[:\s]*(\d+)', response.lower())
+        if match:
+            try:
+                return int(match.group(1))
+            except ValueError:
+                pass
+        return 5  # Default score
 
-            # Count comments
-            lines = code.split('\n')
+    async def generate_best_practices(self, language: str = "python") -> List[str]:
+        """
+        Generate best practices for a programming language using Weaviate knowledge.
+
+        Args:
+            language: Programming language
+
+        Returns:
+            List of best practices
+        """
+        # Check Weaviate for existing best practices
+        existing_practices = []
+        if self.memory_manager:
+            existing_practices = self.memory_manager.retrieve_long_term(
+                f"{language} best practices",
+                limit=5,
+                agent="optimizer",
+            )
+
+        if existing_practices:
+            return [p["content"] for p in existing_practices]
+
+        # Generate new best practices if not found in Weaviate
+        prompt = f"""Provide the top 10 best practices for {language} programming:
+
+1. [Best practice 1]
+2. [Best practice 2]
+...
+10. [Best practice 10]"""
+
+        result = await self._call_llm(prompt)
+
+        if result.get("success", False):
+            lines = result["response"].split('\n')
+            practices = []
             for line in lines:
-                stripped = line.strip()
-                if stripped.startswith('#'):
-                    analysis["comments"] += 1
-                elif stripped.startswith('//') and code_data.get("language", "python") in ["javascript", "java", "csharp"]:
-                    analysis["comments"] += 1
-                elif stripped.startswith('/*') and '*/' in stripped:
-                    analysis["comments"] += 1
+                if line.strip() and not line.lower().startswith(('provide', 'best practices', 'top 10')):
+                    practices.append(line.strip())
 
-            # Parse Python code for functions and classes
-            if code_data.get("language", "python") == "python":
-                try:
-                    tree = ast.parse(code)
-                    for node in ast.walk(tree):
-                        if isinstance(node, ast.FunctionDef):
-                            analysis["functions"] += 1
-                        elif isinstance(node, ast.ClassDef):
-                            analysis["classes"] += 1
-                except:
-                    pass
+            # Store new practices in Weaviate
+            if self.memory_manager and practices:
+                for i, practice in enumerate(practices[:10], 1):
+                    self.memory_manager.store_long_term(
+                        practice,
+                        metadata={
+                            "language": language,
+                            "rank": i,
+                            "type": "best_practice",
+                        },
+                        agent="optimizer",
+                        task_id="best_practices",
+                        importance=0.6,
+                    )
 
-            # Check for common code quality issues
-            if "eval(" in code:
-                analysis["issues"].append("Potential security issue: eval() usage detected")
+            return practices[:10]
+        else:
+            return ["Write clean, readable code",
+                   "Use meaningful variable names",
+                   "Follow PEP 8 guidelines for Python",
+                   "Write unit tests",
+                   "Handle exceptions properly"]
 
-            if "password" in code.lower() and ("=" in code or ":" in code):
-                analysis["issues"].append("Potential security issue: hardcoded password detected")
+    async def optimize_with_knowledge_base(self, code_data: Dict) -> Dict:
+        """
+        Optimize code using patterns from the Weaviate knowledge base.
 
-            # Check for long functions (more than 50 lines)
-            if analysis["functions"] > 0 and analysis["lines"] / analysis["functions"] > 50:
-                analysis["issues"].append("Functions may be too long - consider refactoring")
+        Args:
+            code_data: Code data to optimize
 
-            return analysis
+        Returns:
+            Optimized code with knowledge base references
+        """
+        if not self.memory_manager:
+            return await self.optimize_code(code_data)
 
-        except Exception as e:
+        # Find optimization patterns in Weaviate
+        patterns = self.memory_manager.retrieve_long_term(
+            f"optimization patterns for {code_data.get('description', 'code')}",
+            limit=5,
+            agent="optimizer",
+        )
+
+        if not patterns:
+            return await self.optimize_code(code_data)
+
+        prompt = f"""Optimize the following code using these proven optimization patterns:
+
+Original Code:
+{code_data.get('code', '')}
+
+Optimization Patterns:
+{''.join(f'Pattern {i+1}:\n{p["content"]}\n\n' for i, p in enumerate(patterns))}
+
+Apply the most relevant patterns and provide the optimized code."""
+
+        result = await self._call_llm(prompt)
+
+        if result.get("success", False):
             return {
-                "error": str(e),
-                "issues": ["Could not analyze code quality"]
+                "original_code": code_data.get("code", ""),
+                "optimized_code": result["response"],
+                "patterns_used": [p["content"] for p in patterns],
+                "description": code_data.get("description", ""),
             }
-
-    def _analyze_test_results(self, test_results):
-        """Analyze test results."""
-        try:
-            analysis = {
-                "total_tests": len(test_results),
-                "passed": 0,
-                "failed": 0,
-                "test_types": {},
-                "issues": []
-            }
-
-            for result in test_results:
-                if result["passed"]:
-                    analysis["passed"] += 1
-                else:
-                    analysis["failed"] += 1
-
-                test_type = result.get("test_type", "basic")
-                if test_type not in analysis["test_types"]:
-                    analysis["test_types"][test_type] = {"passed": 0, "failed": 0}
-
-                if result["passed"]:
-                    analysis["test_types"][test_type]["passed"] += 1
-                else:
-                    analysis["test_types"][test_type]["failed"] += 1
-
-            # Check for test result issues
-            if analysis["failed"] > 0:
-                analysis["issues"].append(f"{analysis['failed']} tests failed")
-
-            # Check if all test types were used
-            expected_types = ["basic", "unit", "integration", "performance", "coverage", "security"]
-            missing_types = [t for t in expected_types if t not in analysis["test_types"]]
-            if missing_types:
-                analysis["issues"].append(f"Missing test types: {', '.join(missing_types)}")
-
-            return analysis
-
-        except Exception as e:
+        else:
             return {
-                "error": str(e),
-                "issues": ["Could not analyze test results"]
+                "original_code": code_data.get("code", ""),
+                "optimized_code": code_data.get("code", ""),
+                "patterns_used": [],
+                "description": code_data.get("description", ""),
+                "error": result.get("error", "Unknown error"),
             }
 
-    def _analyze_performance(self, test_results):
-        """Analyze performance metrics."""
-        try:
-            analysis = {
-                "execution_time_ms": 0,
-                "memory_usage_kb": 0,
-                "issues": []
-            }
 
-            for result in test_results:
-                if "performance" in result:
-                    perf = result["performance"]
-                    if "execution_time_ms" in perf:
-                        analysis["execution_time_ms"] = max(analysis["execution_time_ms"], perf["execution_time_ms"])
-                    if "memory_usage_kb" in perf:
-                        analysis["memory_usage_kb"] = max(analysis["memory_usage_kb"], perf["memory_usage_kb"])
-
-            # Check for performance issues
-            if analysis["execution_time_ms"] > 1000:  # More than 1 second
-                analysis["issues"].append("Slow execution - consider performance optimization")
-
-            if analysis["memory_usage_kb"] > 10000:  # More than 10MB
-                analysis["issues"].append("High memory usage - consider memory optimization")
-
-            return analysis
-
-        except Exception as e:
-            return {
-                "error": str(e),
-                "issues": ["Could not analyze performance"]
-            }
-
-    def _analyze_security(self, test_results):
-        """Analyze security findings."""
-        try:
-            analysis = {
-                "security_issues": 0,
-                "issues": []
-            }
-
-            for result in test_results:
-                if "security_issues" in result:
-                    analysis["security_issues"] += len(result["security_issues"])
-
-            if analysis["security_issues"] > 0:
-                analysis["issues"].append(f"Found {analysis['security_issues']} security issues")
-
-            return analysis
-
-        except Exception as e:
-            return {
-                "error": str(e),
-                "issues": ["Could not analyze security"]
-            }
-
-    def _generate_suggestions(self, analysis):
-        """Generate optimization suggestions based on analysis."""
-        suggestions = []
-
-        # Code quality suggestions
-        if "issues" in analysis["code_quality"] and analysis["code_quality"]["issues"]:
-            for issue in analysis["code_quality"]["issues"]:
-                suggestions.append({
-                    "type": "code_quality",
-                    "details": f"Code quality issue: {issue}",
-                    "priority": "medium"
-                })
-
-        # Test result suggestions
-        if "issues" in analysis["test_results"] and analysis["test_results"]["issues"]:
-            for issue in analysis["test_results"]["issues"]:
-                suggestions.append({
-                    "type": "testing",
-                    "details": f"Testing issue: {issue}",
-                    "priority": "high" if "failed" in issue else "medium"
-                })
-
-        # Performance suggestions
-        if "issues" in analysis["performance"] and analysis["performance"]["issues"]:
-            for issue in analysis["performance"]["issues"]:
-                suggestions.append({
-                    "type": "performance",
-                    "details": f"Performance issue: {issue}",
-                    "priority": "high"
-                })
-
-        # Security suggestions
-        if "issues" in analysis["security"] and analysis["security"]["issues"]:
-            for issue in analysis["security"]["issues"]:
-                suggestions.append({
-                    "type": "security",
-                    "details": f"Security issue: {issue}",
-                    "priority": "critical"
-                })
-
-        # General suggestions
-        if analysis["test_results"]["passed"] == analysis["test_results"]["total_tests"]:
-            suggestions.append({
-                "type": "general",
-                "details": "All tests passed - good job!",
-                "priority": "low"
-            })
-
-        if analysis["code_quality"]["comments"] < analysis["code_quality"]["lines"] * 0.1:
-            suggestions.append({
-                "type": "documentation",
-                "details": "Consider adding more comments to the code",
-                "priority": "low"
-            })
-
-        return suggestions
-
-    async def _research_improvements(self, language, task_description):
-        """Research additional improvements using the Researcher agent."""
-        try:
-            if not self.researcher:
-                return []
-
-            suggestions = []
-
-            # Research optimizations
-            opt_results = await self.researcher.research_optimizations(language, task_description)
-            for result in opt_results:
-                suggestions.append({
-                    "type": "optimization",
-                    "details": result["content"],
-                    "source": "researcher",
-                    "priority": "medium"
-                })
-
-            # Research best practices
-            bp_results = await self.researcher.search_web(f"{language} best practices {task_description}")
-            for result in bp_results:
-                suggestions.append({
-                    "type": "best_practice",
-                    "details": f"Found best practice: {result['snippet']} - {result['url']}",
-                    "source": "researcher",
-                    "priority": "medium"
-                })
-
-            # Research code examples
-            example_results = await self.researcher.get_code_examples(language, task_description)
-            for result in example_results:
-                suggestions.append({
-                    "type": "example",
-                    "details": f"Code example: {result['title']}",
-                    "code": result["code"],
-                    "source": "researcher",
-                    "priority": "low"
-                })
-
-            return suggestions
-
-        except Exception as e:
-            return [{
-                "type": "error",
-                "details": f"Research failed: {str(e)}",
-                "priority": "low"
-            }]
-
-    def get_improvement_history(self):
-        """Get the history of improvements."""
-        return self.history.get("history", [])
-
-    def get_statistics(self):
-        """Get optimization statistics."""
-        history = self.history.get("history", [])
-        stats = {
-            "total_suggestions": len(history),
-            "by_type": {},
-            "by_priority": {}
-        }
-
-        for entry in history:
-            suggestion_type = entry.get("type", "unknown")
-            priority = entry.get("priority", "medium")
-
-            if suggestion_type not in stats["by_type"]:
-                stats["by_type"][suggestion_type] = 0
-            stats["by_type"][suggestion_type] += 1
-
-            if priority not in stats["by_priority"]:
-                stats["by_priority"][priority] = 0
-            stats["by_priority"][priority] += 1
-
-        return stats
 
 

@@ -1,0 +1,45 @@
+
+# Secure Code Execution Sandbox
+# This Docker image provides an isolated environment for running untrusted code
+
+FROM python:3.12-slim
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# Install basic dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    build-essential \
+    gcc \
+    g++ \
+    make \
+    git \
+    curl \
+    wget \
+    ca-certificates \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create a non-root user for running code
+RUN useradd -m -s /bin/bash sandboxuser && \
+    mkdir -p /home/sandboxuser/code && \
+    chown -R sandboxuser:sandboxuser /home/sandboxuser
+
+# Set work directory
+WORKDIR /home/sandboxuser/code
+
+# Switch to non-root user
+USER sandboxuser
+
+# Copy and install requirements
+COPY requirements.txt .
+RUN pip install --user -r requirements.txt
+
+# Add entrypoint script
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

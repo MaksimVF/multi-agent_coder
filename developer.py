@@ -3,21 +3,22 @@
 
 
 import json
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from base_llm_agent import BaseLLMAgent
 
 class Developer(BaseLLMAgent):
     """LLM-powered Developer agent for code generation and fixing."""
 
-    def __init__(self, model: str = "gpt-4o", temperature: float = 0.7):
+    def __init__(self, model: str = "gpt-4o", temperature: float = 0.7, memory_manager: Optional["MemoryManager"] = None):
         """
         Initialize the LLM-powered Developer.
 
         Args:
             model: LLM model to use
             temperature: Creativity level for LLM
+            memory_manager: Memory manager for agent memory
         """
-        super().__init__(model=model, temperature=temperature)
+        super().__init__(model=model, temperature=temperature, memory_manager=memory_manager)
 
         # Developer-specific configuration
         self.system_message = (

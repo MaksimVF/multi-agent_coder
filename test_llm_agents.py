@@ -5,6 +5,7 @@
 import asyncio
 import sys
 import os
+import pytest
 
 # Set a mock API key for testing
 os.environ["OPENAI_API_KEY"] = "mock_key"
@@ -16,6 +17,7 @@ from optimizer import Optimizer
 from researcher import Researcher
 from agent_workflow import AgentWorkflow
 
+@pytest.mark.asyncio
 async def test_llm_agents():
     """Test the LLM-powered agents."""
     print("🧪 Testing LLM-powered agents...")
@@ -51,10 +53,8 @@ async def test_llm_agents():
 
     # Test Researcher
     print("\n4. Testing Researcher...")
-    research_results = await researcher.search_web("Python factorial function")
-    print(f"   Found {len(research_results)} search results:")
-    for i, result in enumerate(research_results[:2], 1):
-        print(f"   {i}. {result.get('title', 'Unknown')}")
+    research_results = await researcher.research_topic("Python factorial function")
+    print(f"   Research completed: {research_results.get('status', 'Unknown')}")
 
     # Test Optimizer
     print("\n5. Testing Optimizer...")
@@ -72,10 +72,10 @@ async def test_llm_agents():
     # Test Workflow
     print("\n6. Testing Agent Workflow...")
     workflow = AgentWorkflow()
-    workflow.register_agent("analyst", analyst)
-    workflow.register_agent("developer", developer)
-    workflow.register_agent("tester", tester)
-    workflow.register_agent("optimizer", optimizer)
+    workflow.add_agent("analyst", analyst)
+    workflow.add_agent("developer", developer)
+    workflow.add_agent("tester", tester)
+    workflow.add_agent("optimizer", optimizer)
 
     workflow.add_edge("analyst", "developer")
     workflow.add_edge("developer", "tester")
@@ -87,7 +87,8 @@ async def test_llm_agents():
         "test_type": "basic"
     }
 
-    workflow_result = await workflow.execute_workflow("analyst", initial_data)
+    workflow.set_initial_state(initial_data)
+    workflow_result = await workflow.execute_workflow()
 
     if workflow_result["status"] == "completed":
         print("   ✅ Workflow completed successfully!")

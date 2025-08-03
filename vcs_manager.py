@@ -1,5 +1,4 @@
 
-
 import subprocess
 import os
 from pathlib import Path
@@ -71,8 +70,6 @@ class VCSManager:
         except Exception as e:
             return {"success": False, "error": str(e)}
 
-
-
     def create_branch(self, branch_name):
         """Create a new Git branch."""
         try:
@@ -117,8 +114,6 @@ class VCSManager:
             return {"success": False, "error": str(e)}
 
     def get_status(self):
-
-
         """Get Git repository status."""
         try:
             result = subprocess.run(
@@ -129,42 +124,6 @@ class VCSManager:
             )
             if result.returncode == 0:
                 return {"success": True, "status": result.stdout}
-            else:
-                return {"success": False, "error": result.stderr}
-        except Exception as e:
-            return {"success": False, "error": str(e)}
-
-    def create_branch(self, branch_name):
-        """Create a new Git branch."""
-        try:
-            result = subprocess.run(
-                ['git', 'checkout', '-b', branch_name],
-                cwd=self.repo_path,
-                capture_output=True,
-                text=True
-            )
-            if result.returncode == 0:
-                return {"success": True, "message": f"Branch '{branch_name}' created"}
-            else:
-                return {"success": False, "error": result.stderr}
-        except Exception as e:
-            return {"success": False, "error": str(e)}
-
-    def push_changes(self, remote="origin", branch=None):
-        """Push changes to remote repository."""
-        try:
-            branch = branch or self._get_current_branch()
-            if not branch:
-                return {"success": False, "error": "No branch specified and could not determine current branch"}
-
-            result = subprocess.run(
-                ['git', 'push', remote, branch],
-                cwd=self.repo_path,
-                capture_output=True,
-                text=True
-            )
-            if result.returncode == 0:
-                return {"success": True, "message": f"Changes pushed to {remote}/{branch}"}
             else:
                 return {"success": False, "error": result.stderr}
         except Exception as e:
@@ -184,4 +143,3 @@ class VCSManager:
             return None
         except Exception:
             return None
-
