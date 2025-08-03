@@ -87,7 +87,8 @@ async def test_llm_agents():
         "test_type": "basic"
     }
 
-    workflow_result = await workflow.execute_workflow("analyst", initial_data)
+    workflow.set_initial_state(initial_data)
+    workflow_result = await workflow.execute_workflow()
 
     if workflow_result["status"] == "completed":
         print("   ✅ Workflow completed successfully!")
