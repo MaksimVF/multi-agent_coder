@@ -72,10 +72,10 @@ async def test_llm_agents():
     # Test Workflow
     print("\n6. Testing Agent Workflow...")
     workflow = AgentWorkflow()
-    workflow.register_agent("analyst", analyst)
-    workflow.register_agent("developer", developer)
-    workflow.register_agent("tester", tester)
-    workflow.register_agent("optimizer", optimizer)
+    workflow.add_agent("analyst", analyst)
+    workflow.add_agent("developer", developer)
+    workflow.add_agent("tester", tester)
+    workflow.add_agent("optimizer", optimizer)
 
     workflow.add_edge("analyst", "developer")
     workflow.add_edge("developer", "tester")
