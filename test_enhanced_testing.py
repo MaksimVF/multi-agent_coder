@@ -7,12 +7,14 @@ Test script to verify the enhanced testing capabilities.
 import asyncio
 import sys
 import os
+import pytest
 
 # Add the current directory to Python path to import the tester
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from tester import Tester
 
+@pytest.mark.asyncio
 async def test_enhanced_testing():
     """Test the enhanced testing capabilities."""
 

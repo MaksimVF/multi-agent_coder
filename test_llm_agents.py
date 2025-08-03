@@ -5,6 +5,7 @@
 import asyncio
 import sys
 import os
+import pytest
 
 # Set a mock API key for testing
 os.environ["OPENAI_API_KEY"] = "mock_key"
@@ -16,6 +17,7 @@ from optimizer import Optimizer
 from researcher import Researcher
 from agent_workflow import AgentWorkflow
 
+@pytest.mark.asyncio
 async def test_llm_agents():
     """Test the LLM-powered agents."""
     print("🧪 Testing LLM-powered agents...")
