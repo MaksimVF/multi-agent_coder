@@ -220,8 +220,8 @@ class Tester(BaseLLMAgent):
             import resource
             # Limit CPU time (10 seconds)
             resource.setrlimit(resource.RLIMIT_CPU, (10, 10))
-            # Limit memory (100MB)
-            resource.setrlimit(resource.RLIMIT_AS, (100 * 1024 * 1024, 100 * 1024 * 1024))
+            # Limit memory (500MB)
+            resource.setrlimit(resource.RLIMIT_AS, (500 * 1024 * 1024, 500 * 1024 * 1024))
 
             # Execute in a restricted environment
             env = os.environ.copy()
