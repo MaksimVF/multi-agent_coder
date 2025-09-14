@@ -6,35 +6,66 @@ import asyncio
 from typing import Dict, Any, List
 from roles import ProductManager, Architect, Engineer, QaEngineer
 from roles.unified_roles import AnalystArchitect, DeveloperEngineer, TesterQa
+from roles.task_decomposer import TaskDecomposer
 
 class RoleCoordinator:
     """Coordinates the execution of different roles in the development process"""
 
-    def __init__(self, use_unified_roles: bool = False):
+    def __init__(self, use_unified_roles: bool = False, use_task_decomposer: bool = False):
         if use_unified_roles:
-            self.roles = {
-                "AnalystArchitect": AnalystArchitect(),
-                "DeveloperEngineer": DeveloperEngineer(),
-                "TesterQa": TesterQa()
-            }
-            self.workflow = [
-                "AnalystArchitect",
-                "DeveloperEngineer",
-                "TesterQa"
-            ]
+            if use_task_decomposer:
+                self.roles = {
+                    "AnalystArchitect": AnalystArchitect(),
+                    "TaskDecomposer": TaskDecomposer(),
+                    "DeveloperEngineer": DeveloperEngineer(),
+                    "TesterQa": TesterQa()
+                }
+                self.workflow = [
+                    "AnalystArchitect",
+                    "TaskDecomposer",
+                    "DeveloperEngineer",
+                    "TesterQa"
+                ]
+            else:
+                self.roles = {
+                    "AnalystArchitect": AnalystArchitect(),
+                    "DeveloperEngineer": DeveloperEngineer(),
+                    "TesterQa": TesterQa()
+                }
+                self.workflow = [
+                    "AnalystArchitect",
+                    "DeveloperEngineer",
+                    "TesterQa"
+                ]
         else:
-            self.roles = {
-                "ProductManager": ProductManager(),
-                "Architect": Architect(),
-                "Engineer": Engineer(),
-                "QaEngineer": QaEngineer()
-            }
-            self.workflow = [
-                "ProductManager",
-                "Architect",
-                "Engineer",
-                "QaEngineer"
-            ]
+            if use_task_decomposer:
+                self.roles = {
+                    "ProductManager": ProductManager(),
+                    "Architect": Architect(),
+                    "TaskDecomposer": TaskDecomposer(),
+                    "Engineer": Engineer(),
+                    "QaEngineer": QaEngineer()
+                }
+                self.workflow = [
+                    "ProductManager",
+                    "Architect",
+                    "TaskDecomposer",
+                    "Engineer",
+                    "QaEngineer"
+                ]
+            else:
+                self.roles = {
+                    "ProductManager": ProductManager(),
+                    "Architect": Architect(),
+                    "Engineer": Engineer(),
+                    "QaEngineer": QaEngineer()
+                }
+                self.workflow = [
+                    "ProductManager",
+                    "Architect",
+                    "Engineer",
+                    "QaEngineer"
+                ]
 
         self.context = {}
 
