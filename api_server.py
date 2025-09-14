@@ -22,6 +22,8 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPExcept
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from pydantic import BaseModel
+from prometheus_client import Counter, Gauge, generate_latest, CONTENT_TYPE_LATEST
+from starlette.responses import Response
 from role_coordinator import RoleCoordinator
 from roles import ProductManager, Architect, Engineer, QaEngineer
 from roles.unified_roles import AnalystArchitect, DeveloperEngineer, TesterQa
@@ -43,6 +45,13 @@ DATABASE_URL = "multi_agent_coder.db"
 SECRET_KEY = "your-secret-key-here"  # Change this in production!
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
+
+# Prometheus metrics
+REQUEST_COUNT = Counter('http_requests_total', 'Total HTTP Requests', ['method', 'endpoint', 'status_code'])
+ACTIVE_USERS = Gauge('active_users', 'Number of active users')
+ACTIVE_PROJECTS = Gauge('active_projects', 'Number of active projects')
+ACTIVE_AGENTS = Gauge('active_agents', 'Number of active agents')
+AGENT_EXECUTION_TIME = Gauge('agent_execution_time_seconds', 'Agent execution time in seconds', ['agent_name'])
 
 def init_db():
     """Initialize database"""
@@ -199,6 +208,83 @@ def log_system_action(user_id: Optional[int], action: str, details: str = "", le
         "level": level
     })))
 
+# Metrics utilities
+def get_active_users() -> List[User]:
+    """Get all active users"""
+    conn = sqlite3.connect(DATABASE_URL)
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT id, username, email, full_name, is_active, is_admin
+        FROM users
+        WHERE is_active = TRUE
+    ''')
+
+    users = []
+    for row in cursor.fetchall():
+        users.append(User(
+            id=row[0],
+            username=row[1],
+            email=row[2],
+            full_name=row[3],
+            is_active=row[4],
+            is_admin=row[5]
+        ))
+
+    conn.close()
+    return users
+
+def get_active_projects() -> List[Dict]:
+    """Get all active projects"""
+    conn = sqlite3.connect(DATABASE_URL)
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT id, name, description, status, owner_id, created_at, updated_at
+        FROM projects
+        WHERE status != 'completed'
+    ''')
+
+    projects = []
+    for row in cursor.fetchall():
+        projects.append({
+            "id": row[0],
+            "name": row[1],
+            "description": row[2],
+            "status": row[3],
+            "owner_id": row[4],
+            "created_at": row[5],
+            "updated_at": row[6]
+        })
+
+    conn.close()
+    return projects
+
+def get_active_agents() -> List[Dict]:
+    """Get all active agents"""
+    conn = sqlite3.connect(DATABASE_URL)
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT id, project_id, name, status, created_at, updated_at
+        FROM agents
+        WHERE status IN ('running', 'pending')
+    ''')
+
+    agents = []
+    for row in cursor.fetchall():
+        agents.append({
+            "id": row[0],
+            "project_id": row[1],
+            "name": row[2],
+            "status": row[3],
+            "created_at": row[4],
+            "updated_at": row[5]
+        })
+
+    conn.close()
+    return agents
+
 # Models
 class UserCreate(BaseModel):
     username: str
@@ -342,6 +428,7 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     conn.close()
 
     if not user or not verify_password(user[3], form_data.password):
+        REQUEST_COUNT.labels(method="POST", endpoint="/token", status_code=401).inc()
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
@@ -356,7 +443,17 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     # Log successful login
     log_system_action(user[0], "user_login", f"User {user[1]} logged in")
 
+    # Update metrics
+    REQUEST_COUNT.labels(method="POST", endpoint="/token", status_code=200).inc()
+    ACTIVE_USERS.set(len(get_active_users()))
+
     return {"access_token": access_token, "token_type": "bearer"}
+
+# Metrics endpoint
+@app.get("/metrics")
+async def metrics():
+    """Prometheus metrics endpoint"""
+    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 @app.post("/users/", response_model=User)
 async def create_user(user: UserCreate, current_user: User = Depends(get_admin_user)):
