@@ -5,24 +5,38 @@
 import asyncio
 from typing import Dict, Any, List
 from roles import ProductManager, Architect, Engineer, QaEngineer
+from roles.unified_roles import AnalystArchitect, DeveloperEngineer, TesterQa
 
 class RoleCoordinator:
     """Coordinates the execution of different roles in the development process"""
 
-    def __init__(self):
-        self.roles = {
-            "ProductManager": ProductManager(),
-            "Architect": Architect(),
-            "Engineer": Engineer(),
-            "QaEngineer": QaEngineer()
-        }
+    def __init__(self, use_unified_roles: bool = False):
+        if use_unified_roles:
+            self.roles = {
+                "AnalystArchitect": AnalystArchitect(),
+                "DeveloperEngineer": DeveloperEngineer(),
+                "TesterQa": TesterQa()
+            }
+            self.workflow = [
+                "AnalystArchitect",
+                "DeveloperEngineer",
+                "TesterQa"
+            ]
+        else:
+            self.roles = {
+                "ProductManager": ProductManager(),
+                "Architect": Architect(),
+                "Engineer": Engineer(),
+                "QaEngineer": QaEngineer()
+            }
+            self.workflow = [
+                "ProductManager",
+                "Architect",
+                "Engineer",
+                "QaEngineer"
+            ]
+
         self.context = {}
-        self.workflow = [
-            "ProductManager",
-            "Architect",
-            "Engineer",
-            "QaEngineer"
-        ]
 
     async def run_workflow(self, initial_context: Dict[str, Any]) -> Dict[str, Any]:
         """Run the complete development workflow"""

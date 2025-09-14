@@ -171,8 +171,8 @@ async def main():
     print("  - Using Product Manager, Architect, Engineer, and QA Engineer roles")
     print("  - Creating project skeleton and implementing core components")
 
-    # Create and run role coordinator
-    role_coordinator = RoleCoordinator()
+    # Create and run role coordinator with original roles
+    role_coordinator = RoleCoordinator(use_unified_roles=False)
 
     # Example project requirements
     project_requirements = {
@@ -180,8 +180,8 @@ async def main():
                        "Include user authentication and REST API endpoints."
     }
 
-    # Run the enhanced workflow
-    print("  - Running enhanced development workflow...")
+    # Run the enhanced workflow with original roles
+    print("  - Running enhanced development workflow with original roles...")
     coordinator_result = await role_coordinator.run_workflow(project_requirements)
 
     # Show results
@@ -190,6 +190,24 @@ async def main():
     print(f"  - Created files: {len(coordinator_result.get('project_structure', {}))} directories")
     print(f"  - Implemented components: {len(coordinator_result.get('code_implementation', {}))}")
     print(f"  - Test status: {coordinator_result.get('qa_status', 'unknown')}")
+
+    # Demonstrate unified roles
+    print("\n🎯 Demonstrating Unified Roles (Reduced Redundancy):")
+    print("  - Using AnalystArchitect, DeveloperEngineer, and TesterQa roles")
+
+    # Create and run role coordinator with unified roles
+    unified_coordinator = RoleCoordinator(use_unified_roles=True)
+
+    # Run the workflow with unified roles
+    print("  - Running workflow with unified roles...")
+    unified_result = await unified_coordinator.run_workflow(project_requirements)
+
+    # Show results
+    print("  - Unified workflow completed successfully!")
+    print(f"  - Generated architecture: {unified_result.get('system_architecture', {}).get('components', [])}")
+    print(f"  - Created files: {len(unified_result.get('project_structure', {}))} directories")
+    print(f"  - Implemented components: {len(unified_result.get('code_implementation', {}))}")
+    print(f"  - Test status: {unified_result.get('qa_status', 'unknown')}")
 
 if __name__ == "__main__":
     asyncio.run(main())
