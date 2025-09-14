@@ -103,6 +103,33 @@ def init_db():
         )
     ''')
 
+    # Create reports table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS reports (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            agent_id INTEGER,
+            project_id INTEGER,
+            report_type TEXT NOT NULL,
+            data TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (agent_id) REFERENCES agents (id),
+            FOREIGN KEY (project_id) REFERENCES projects (id)
+        )
+    ''')
+
+    # Create system_logs table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS system_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            action TEXT NOT NULL,
+            details TEXT,
+            level TEXT DEFAULT 'info',
+            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+    ''')
+
     conn.commit()
     conn.close()
 
@@ -150,6 +177,28 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
+# Logging utilities
+def log_system_action(user_id: Optional[int], action: str, details: str = "", level: str = "info") -> None:
+    """Log system actions"""
+    conn = sqlite3.connect(DATABASE_URL)
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        INSERT INTO system_logs (user_id, action, details, level)
+        VALUES (?, ?, ?, ?)
+    ''', (user_id, action, details, level))
+
+    conn.commit()
+    conn.close()
+
+    # Broadcast system log
+    asyncio.create_task(ws_manager.broadcast(json.dumps({
+        "event": "system_log",
+        "action": action,
+        "details": details,
+        "level": level
+    })))
+
 # Models
 class UserCreate(BaseModel):
     username: str
@@ -196,6 +245,28 @@ class AgentStatus(BaseModel):
     agent_name: str
     status: str
     message: str
+
+class Report(BaseModel):
+    id: int
+    agent_id: int
+    project_id: int
+    report_type: str
+    data: dict
+    created_at: datetime
+
+    class Config:
+        orm_mode = True
+
+class SystemLog(BaseModel):
+    id: int
+    user_id: Optional[int]
+    action: str
+    details: str
+    level: str
+    timestamp: datetime
+
+    class Config:
+        orm_mode = True
 
 # Security dependencies
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
@@ -282,6 +353,9 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
         data={"sub": user[1]}, expires_delta=access_token_expires
     )
 
+    # Log successful login
+    log_system_action(user[0], "user_login", f"User {user[1]} logged in")
+
     return {"access_token": access_token, "token_type": "bearer"}
 
 @app.post("/users/", response_model=User)
@@ -309,6 +383,9 @@ async def create_user(user: UserCreate, current_user: User = Depends(get_admin_u
     user_id = cursor.lastrowid
     conn.commit()
     conn.close()
+
+    # Log user creation
+    log_system_action(current_user.id, "user_created", f"Admin {current_user.username} created user {user.username}")
 
     # Get created user
     created_user = User(
@@ -369,6 +446,9 @@ async def create_project(
     project_id = cursor.lastrowid
     conn.commit()
     conn.close()
+
+    # Log project creation
+    log_system_action(current_user.id, "project_created", f"User {current_user.username} created project {project.name}")
 
     # Broadcast project creation
     await ws_manager.broadcast(json.dumps({
@@ -443,6 +523,9 @@ async def execute_agent(
     conn.commit()
     conn.close()
 
+    # Log agent execution
+    log_system_action(current_user.id, "agent_executed", f"User {current_user.username} executed agent {agent_name} for project {project[0]}")
+
     # Execute agent
     try:
         # Create role coordinator
@@ -472,6 +555,18 @@ async def execute_agent(
             WHERE id = ?
         ''', ("completed", agent_id))
 
+        # Save report
+        report_data = {
+            "status": "success",
+            "result": result,
+            "agent_name": agent_name,
+            "project_name": project[0]
+        }
+        cursor.execute('''
+            INSERT INTO reports (agent_id, project_id, report_type, data)
+            VALUES (?, ?, ?, ?)
+        ''', (agent_id, project_id, "execution_report", json.dumps(report_data)))
+
         conn.commit()
         conn.close()
 
@@ -496,8 +591,23 @@ async def execute_agent(
             WHERE id = ?
         ''', ("failed", agent_id))
 
+        # Save error report
+        error_report = {
+            "status": "error",
+            "error": str(e),
+            "agent_name": agent_name,
+            "project_name": project[0]
+        }
+        cursor.execute('''
+            INSERT INTO reports (agent_id, project_id, report_type, data)
+            VALUES (?, ?, ?, ?)
+        ''', (agent_id, project_id, "error_report", json.dumps(error_report)))
+
         conn.commit()
         conn.close()
+
+        # Log agent failure
+        log_system_action(current_user.id, "agent_failed", f"Agent {agent_name} failed for project {project[0]}: {str(e)}")
 
         # Broadcast agent failure
         await ws_manager.broadcast(json.dumps({
@@ -582,6 +692,104 @@ async def get_agent_logs(
             "message": row[0],
             "level": row[1],
             "timestamp": row[2]
+        })
+
+    conn.close()
+    return {"logs": logs}
+
+@app.get("/agents/{agent_id}/reports/", response_model=dict)
+async def get_agent_reports(
+    agent_id: int,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get reports for an agent"""
+    conn = sqlite3.connect(DATABASE_URL)
+    cursor = conn.cursor()
+
+    # Check if user has access to the agent
+    cursor.execute('''
+        SELECT p.owner_id
+        FROM agents a
+        JOIN projects p ON a.project_id = p.id
+        WHERE a.id = ?
+    ''', (agent_id,))
+
+    owner = cursor.fetchone()
+    if not owner or owner[0] != current_user.id:
+        conn.close()
+        raise HTTPException(status_code=403, detail="Not authorized to access this agent")
+
+    cursor.execute('''
+        SELECT id, report_type, data, created_at
+        FROM reports
+        WHERE agent_id = ?
+        ORDER BY created_at DESC
+    ''', (agent_id,))
+
+    reports = []
+    for row in cursor.fetchall():
+        reports.append({
+            "id": row[0],
+            "report_type": row[1],
+            "data": json.loads(row[2]),
+            "created_at": row[3]
+        })
+
+    conn.close()
+    return {"reports": reports}
+
+@app.get("/admin/reports/", response_model=dict)
+async def get_all_reports(current_user: User = Depends(get_admin_user)):
+    """Get all reports (admin only)"""
+    conn = sqlite3.connect(DATABASE_URL)
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT r.id, r.agent_id, r.project_id, r.report_type, r.data, r.created_at,
+               a.name as agent_name, p.name as project_name
+        FROM reports r
+        JOIN agents a ON r.agent_id = a.id
+        JOIN projects p ON r.project_id = p.id
+        ORDER BY r.created_at DESC
+    ''')
+
+    reports = []
+    for row in cursor.fetchall():
+        reports.append({
+            "id": row[0],
+            "agent_id": row[1],
+            "project_id": row[2],
+            "report_type": row[3],
+            "data": json.loads(row[4]),
+            "created_at": row[5],
+            "agent_name": row[6],
+            "project_name": row[7]
+        })
+
+    conn.close()
+    return {"reports": reports}
+
+@app.get("/admin/logs/", response_model=dict)
+async def get_system_logs(current_user: User = Depends(get_admin_user)):
+    """Get system logs (admin only)"""
+    conn = sqlite3.connect(DATABASE_URL)
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT id, user_id, action, details, level, timestamp
+        FROM system_logs
+        ORDER BY timestamp DESC
+    ''')
+
+    logs = []
+    for row in cursor.fetchall():
+        logs.append({
+            "id": row[0],
+            "user_id": row[1],
+            "action": row[2],
+            "details": row[3],
+            "level": row[4],
+            "timestamp": row[5]
         })
 
     conn.close()

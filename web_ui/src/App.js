@@ -21,9 +21,15 @@ function App() {
   const [projects, setProjects] = useState([]);
   const [agents, setAgents] = useState([]);
   const [selectedProject, setSelectedProject] = useState(null);
+  const [selectedAgent, setSelectedAgent] = useState(null);
+  const [agentLogs, setAgentLogs] = useState([]);
+  const [agentReports, setAgentReports] = useState([]);
+  const [systemLogs, setSystemLogs] = useState([]);
+  const [allReports, setAllReports] = useState([]);
   const [ws, setWs] = useState(null);
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(localStorage.getItem('token') || null);
+  const [view, setView] = useState('projects'); // 'projects', 'logs', 'reports'
 
   // Initialize axios with token
   const api = axios.create({
@@ -56,6 +62,11 @@ function App() {
             fetchProjectAgents(selectedProject.id);
           }
           break;
+        case 'system_log':
+          if (view === 'logs') {
+            fetchSystemLogs();
+          }
+          break;
         default:
           break;
       }
@@ -70,7 +81,7 @@ function App() {
     return () => {
       socket.close();
     };
-  }, [selectedProject]);
+  }, [selectedProject, view]);
 
   // Fetch user info on mount
   useEffect(() => {
@@ -113,6 +124,46 @@ function App() {
     }
   };
 
+  // Fetch agent logs
+  const fetchAgentLogs = async (agentId) => {
+    try {
+      const response = await api.get(`/agents/${agentId}/logs/`);
+      setAgentLogs(response.data.logs);
+    } catch (error) {
+      console.error('Error fetching agent logs:', error);
+    }
+  };
+
+  // Fetch agent reports
+  const fetchAgentReports = async (agentId) => {
+    try {
+      const response = await api.get(`/agents/${agentId}/reports/`);
+      setAgentReports(response.data.reports);
+    } catch (error) {
+      console.error('Error fetching agent reports:', error);
+    }
+  };
+
+  // Fetch system logs (admin only)
+  const fetchSystemLogs = async () => {
+    try {
+      const response = await api.get('/admin/logs/');
+      setSystemLogs(response.data.logs);
+    } catch (error) {
+      console.error('Error fetching system logs:', error);
+    }
+  };
+
+  // Fetch all reports (admin only)
+  const fetchAllReports = async () => {
+    try {
+      const response = await api.get('/admin/reports/');
+      setAllReports(response.data.reports);
+    } catch (error) {
+      console.error('Error fetching all reports:', error);
+    }
+  };
+
   // Login
   const login = async () => {
     const username = prompt('Enter username:');
@@ -149,6 +200,11 @@ function App() {
     setProjects([]);
     setAgents([]);
     setSelectedProject(null);
+    setSelectedAgent(null);
+    setAgentLogs([]);
+    setAgentReports([]);
+    setSystemLogs([]);
+    setAllReports([]);
     localStorage.removeItem('token');
     delete api.defaults.headers['Authorization'];
   };
@@ -201,48 +257,134 @@ function App() {
 
       {user ? (
         <div className="content">
-          <div className="projects">
-            <h2>Projects</h2>
-            <button onClick={createProject}>Create Project</button>
+          <nav className="sidebar">
+            <h3>Navigation</h3>
             <ul>
-              {projects.map(project => (
-                <li
-                  key={project.id}
-                  onClick={() => {
-                    setSelectedProject(project);
-                    fetchProjectAgents(project.id);
-                  }}
-                  className={selectedProject && selectedProject.id === project.id ? 'selected' : ''}
-                >
-                  {project.name}
-                </li>
-              ))}
+              <li onClick={() => setView('projects')}>Projects</li>
+              {user.is_admin && (
+                <>
+                  <li onClick={() => setView('logs')}>System Logs</li>
+                  <li onClick={() => setView('reports')}>All Reports</li>
+                </>
+              )}
             </ul>
-          </div>
+          </nav>
 
-          {selectedProject && (
-            <div className="project-details">
-              <h2>{selectedProject.name}</h2>
-              <p>{selectedProject.description}</p>
-              <p>Status: {selectedProject.status}</p>
+          <div className="main-content">
+            {view === 'projects' && (
+              <>
+                <div className="projects">
+                  <h2>Projects</h2>
+                  <button onClick={createProject}>Create Project</button>
+                  <ul>
+                    {projects.map(project => (
+                      <li
+                        key={project.id}
+                        onClick={() => {
+                          setSelectedProject(project);
+                          fetchProjectAgents(project.id);
+                        }}
+                        className={selectedProject && selectedProject.id === project.id ? 'selected' : ''}
+                      >
+                        {project.name}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
 
-              <div className="agents">
-                <h3>Agents</h3>
-                <button onClick={() => executeAgent('ProjectManager')}>Run ProjectManager</button>
-                <button onClick={() => executeAgent('AnalystArchitect')}>Run AnalystArchitect</button>
-                <button onClick={() => executeAgent('DeveloperEngineer')}>Run DeveloperEngineer</button>
-                <button onClick={() => executeAgent('TesterQa')}>Run TesterQa</button>
+                {selectedProject && (
+                  <div className="project-details">
+                    <h2>{selectedProject.name}</h2>
+                    <p>{selectedProject.description}</p>
+                    <p>Status: {selectedProject.status}</p>
 
+                    <div className="agents">
+                      <h3>Agents</h3>
+                      <button onClick={() => executeAgent('ProjectManager')}>Run ProjectManager</button>
+                      <button onClick={() => executeAgent('AnalystArchitect')}>Run AnalystArchitect</button>
+                      <button onClick={() => executeAgent('DeveloperEngineer')}>Run DeveloperEngineer</button>
+                      <button onClick={() => executeAgent('TesterQa')}>Run TesterQa</button>
+
+                      <ul>
+                        {agents.map(agent => (
+                          <li
+                            key={agent.id}
+                            onClick={() => {
+                              setSelectedAgent(agent);
+                              fetchAgentLogs(agent.id);
+                              fetchAgentReports(agent.id);
+                            }}
+                            className={selectedAgent && selectedAgent.id === agent.id ? 'selected' : ''}
+                          >
+                            {agent.name} - {agent.status}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    {selectedAgent && (
+                      <div className="agent-details">
+                        <h3>Agent Details: {selectedAgent.name}</h3>
+                        <p>Status: {selectedAgent.status}</p>
+
+                        <div className="agent-logs">
+                          <h4>Logs</h4>
+                          <ul>
+                            {agentLogs.map((log, index) => (
+                              <li key={index}>
+                                <strong>{log.timestamp}</strong> [{log.level}]: {log.message}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+
+                        <div className="agent-reports">
+                          <h4>Reports</h4>
+                          <ul>
+                            {agentReports.map((report, index) => (
+                              <li key={index}>
+                                <strong>{report.report_type}</strong> ({report.created_at}):<br/>
+                                <pre>{JSON.stringify(report.data, null, 2)}</pre>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+
+            {view === 'logs' && user.is_admin && (
+              <div className="system-logs">
+                <h2>System Logs</h2>
+                <button onClick={fetchSystemLogs}>Refresh Logs</button>
                 <ul>
-                  {agents.map(agent => (
-                    <li key={agent.id}>
-                      {agent.name} - {agent.status}
+                  {systemLogs.map(log => (
+                    <li key={log.id}>
+                      <strong>{log.timestamp}</strong> [{log.level}]: {log.action} - {log.details}
                     </li>
                   ))}
                 </ul>
               </div>
-            </div>
-          )}
+            )}
+
+            {view === 'reports' && user.is_admin && (
+              <div className="all-reports">
+                <h2>All Reports</h2>
+                <button onClick={fetchAllReports}>Refresh Reports</button>
+                <ul>
+                  {allReports.map(report => (
+                    <li key={report.id}>
+                      <strong>{report.created_at}</strong> - {report.report_type} for {report.agent_name} in {report.project_name}<br/>
+                      <pre>{JSON.stringify(report.data, null, 2)}</pre>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
         </div>
       ) : (
         <div className="login-prompt">
