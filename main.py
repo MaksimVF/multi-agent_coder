@@ -252,6 +252,34 @@ async def main():
     print(f"  - Review documentation:\n{reviewer_result.get('review_documentation', 'No documentation')}")
     print(f"  - Test status: {reviewer_result.get('qa_status', 'unknown')}")
 
+    # Demonstrate full workflow
+    print("\n🚀 Demonstrating Full Workflow (MetaGPT-inspired):")
+    print("  - Using all roles including Project Manager, Documentation Specialist, and Git Integrator")
+
+    # Create and run role coordinator with full workflow
+    full_coordinator = RoleCoordinator(
+        use_unified_roles=True,
+        use_task_decomposer=True,
+        use_reviewer=True,
+        use_full_workflow=True
+    )
+
+    # Run the full workflow
+    print("  - Running full workflow...")
+    full_result = await full_coordinator.run_workflow(project_requirements)
+
+    # Show results
+    print("  - Full workflow completed successfully!")
+    print(f"  - Project plan: {full_result.get('project_plan', {}).get('project_name', 'No project name')}")
+    print(f"  - Sprints planned: {full_result.get('sprint_plan', {}).get('total_sprints', 0)}")
+    print(f"  - Progress: {full_result.get('progress_report', {}).get('progress_percentage', 0):.1f}%")
+    print(f"  - Generated architecture: {len(full_result.get('system_architecture', {}).get('components', {}))} components")
+    print(f"  - Task list: {len(full_result.get('task_list', []))} tasks")
+    print(f"  - Code review score: {full_result.get('code_review', {}).get('quality_score', 0):.1f}/10")
+    print(f"  - Documentation files: {len(full_result.get('documentation_files', {}))}")
+    print(f"  - Git status: {full_result.get('git_status', {}).get('status', 'unknown')}")
+    print(f"  - Test status: {full_result.get('qa_status', 'unknown')}")
+
 if __name__ == "__main__":
     asyncio.run(main())
 
