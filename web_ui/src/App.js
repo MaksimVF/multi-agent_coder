@@ -22,6 +22,16 @@ function App() {
   const [agents, setAgents] = useState([]);
   const [selectedProject, setSelectedProject] = useState(null);
   const [ws, setWs] = useState(null);
+  const [user, setUser] = useState(null);
+  const [token, setToken] = useState(localStorage.getItem('token') || null);
+
+  // Initialize axios with token
+  const api = axios.create({
+    baseURL: 'http://localhost:8000',
+    headers: {
+      'Authorization': token ? `Bearer ${token}` : ''
+    }
+  });
 
   // Connect to WebSocket
   useEffect(() => {
@@ -62,10 +72,31 @@ function App() {
     };
   }, [selectedProject]);
 
+  // Fetch user info on mount
+  useEffect(() => {
+    if (token) {
+      fetchUser();
+      fetchProjects();
+    }
+  }, [token]);
+
+  // Fetch user info
+  const fetchUser = async () => {
+    try {
+      const response = await api.get('/users/me/');
+      setUser(response.data);
+    } catch (error) {
+      console.error('Error fetching user:', error);
+      setUser(null);
+      setToken(null);
+      localStorage.removeItem('token');
+    }
+  };
+
   // Fetch projects
   const fetchProjects = async () => {
     try {
-      const response = await axios.get('http://localhost:8000/projects/');
+      const response = await api.get('/projects/');
       setProjects(response.data.projects);
     } catch (error) {
       console.error('Error fetching projects:', error);
@@ -75,11 +106,51 @@ function App() {
   // Fetch agents for selected project
   const fetchProjectAgents = async (projectId) => {
     try {
-      const response = await axios.get(`http://localhost:8000/projects/${projectId}/agents/`);
+      const response = await api.get(`/projects/${projectId}/agents/`);
       setAgents(response.data.agents);
     } catch (error) {
       console.error('Error fetching agents:', error);
     }
+  };
+
+  // Login
+  const login = async () => {
+    const username = prompt('Enter username:');
+    const password = prompt('Enter password:');
+
+    if (username && password) {
+      try {
+        const response = await axios.post('http://localhost:8000/token', {
+          username,
+          password
+        }, {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          }
+        });
+
+        const token = response.data.access_token;
+        setToken(token);
+        localStorage.setItem('token', token);
+        api.defaults.headers['Authorization'] = `Bearer ${token}`;
+        fetchUser();
+        fetchProjects();
+      } catch (error) {
+        console.error('Error logging in:', error);
+        alert('Login failed. Please check your credentials.');
+      }
+    }
+  };
+
+  // Logout
+  const logout = () => {
+    setUser(null);
+    setToken(null);
+    setProjects([]);
+    setAgents([]);
+    setSelectedProject(null);
+    localStorage.removeItem('token');
+    delete api.defaults.headers['Authorization'];
   };
 
   // Create project
@@ -89,7 +160,7 @@ function App() {
 
     if (name && description) {
       try {
-        await axios.post('http://localhost:8000/projects/', {
+        await api.post('/projects/', {
           name,
           description
         });
@@ -104,7 +175,7 @@ function App() {
   const executeAgent = async (agentName) => {
     if (selectedProject) {
       try {
-        await axios.post(`http://localhost:8000/projects/${selectedProject.id}/agents/`, null, {
+        await api.post(`/projects/${selectedProject.id}/agents/`, null, {
           params: { agent_name: agentName }
         });
         fetchProjectAgents(selectedProject.id);
@@ -118,52 +189,66 @@ function App() {
     <div className="App">
       <header className="App-header">
         <h1>Multi-Agent Coder</h1>
+        {user ? (
+          <div className="user-info">
+            <span>Logged in as: {user.username}</span>
+            <button onClick={logout}>Logout</button>
+          </div>
+        ) : (
+          <button onClick={login}>Login</button>
+        )}
       </header>
 
-      <div className="content">
-        <div className="projects">
-          <h2>Projects</h2>
-          <button onClick={createProject}>Create Project</button>
-          <ul>
-            {projects.map(project => (
-              <li
-                key={project.id}
-                onClick={() => {
-                  setSelectedProject(project);
-                  fetchProjectAgents(project.id);
-                }}
-                className={selectedProject && selectedProject.id === project.id ? 'selected' : ''}
-              >
-                {project.name}
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        {selectedProject && (
-          <div className="project-details">
-            <h2>{selectedProject.name}</h2>
-            <p>{selectedProject.description}</p>
-            <p>Status: {selectedProject.status}</p>
-
-            <div className="agents">
-              <h3>Agents</h3>
-              <button onClick={() => executeAgent('ProjectManager')}>Run ProjectManager</button>
-              <button onClick={() => executeAgent('AnalystArchitect')}>Run AnalystArchitect</button>
-              <button onClick={() => executeAgent('DeveloperEngineer')}>Run DeveloperEngineer</button>
-              <button onClick={() => executeAgent('TesterQa')}>Run TesterQa</button>
-
-              <ul>
-                {agents.map(agent => (
-                  <li key={agent.id}>
-                    {agent.name} - {agent.status}
-                  </li>
-                ))}
-              </ul>
-            </div>
+      {user ? (
+        <div className="content">
+          <div className="projects">
+            <h2>Projects</h2>
+            <button onClick={createProject}>Create Project</button>
+            <ul>
+              {projects.map(project => (
+                <li
+                  key={project.id}
+                  onClick={() => {
+                    setSelectedProject(project);
+                    fetchProjectAgents(project.id);
+                  }}
+                  className={selectedProject && selectedProject.id === project.id ? 'selected' : ''}
+                >
+                  {project.name}
+                </li>
+              ))}
+            </ul>
           </div>
-        )}
-      </div>
+
+          {selectedProject && (
+            <div className="project-details">
+              <h2>{selectedProject.name}</h2>
+              <p>{selectedProject.description}</p>
+              <p>Status: {selectedProject.status}</p>
+
+              <div className="agents">
+                <h3>Agents</h3>
+                <button onClick={() => executeAgent('ProjectManager')}>Run ProjectManager</button>
+                <button onClick={() => executeAgent('AnalystArchitect')}>Run AnalystArchitect</button>
+                <button onClick={() => executeAgent('DeveloperEngineer')}>Run DeveloperEngineer</button>
+                <button onClick={() => executeAgent('TesterQa')}>Run TesterQa</button>
+
+                <ul>
+                  {agents.map(agent => (
+                    <li key={agent.id}>
+                      {agent.name} - {agent.status}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="login-prompt">
+          <p>Please login to access the system</p>
+        </div>
+      )}
     </div>
   );
 }

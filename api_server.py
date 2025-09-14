@@ -14,8 +14,13 @@
 import os
 import json
 import asyncio
-from typing import Dict, Any, List
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+import hashlib
+import secrets
+from typing import Dict, Any, List, Optional
+from datetime import datetime, timedelta
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from jose import JWTError, jwt
 from pydantic import BaseModel
 from role_coordinator import RoleCoordinator
 from roles import ProductManager, Architect, Engineer, QaEngineer
@@ -35,11 +40,29 @@ app = FastAPI()
 import sqlite3
 
 DATABASE_URL = "multi_agent_coder.db"
+SECRET_KEY = "your-secret-key-here"  # Change this in production!
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 def init_db():
     """Initialize database"""
     conn = sqlite3.connect(DATABASE_URL)
     cursor = conn.cursor()
+
+    # Create users table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            email TEXT UNIQUE NOT NULL,
+            hashed_password TEXT NOT NULL,
+            full_name TEXT,
+            is_active BOOLEAN DEFAULT TRUE,
+            is_admin BOOLEAN DEFAULT FALSE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
 
     # Create projects table
     cursor.execute('''
@@ -48,8 +71,10 @@ def init_db():
             name TEXT NOT NULL,
             description TEXT,
             status TEXT DEFAULT 'pending',
+            owner_id INTEGER,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (owner_id) REFERENCES users (id)
         )
     ''')
 
@@ -103,7 +128,61 @@ class WebSocketManager:
 # Initialize WebSocket manager
 ws_manager = WebSocketManager()
 
+# Security utilities
+def hash_password(password: str) -> str:
+    """Hash a password for storing."""
+    salt = secrets.token_hex(16)
+    return f"{salt}${hashlib.sha256(salt.encode() + password.encode()).hexdigest()}"
+
+def verify_password(stored_password: str, provided_password: str) -> bool:
+    """Verify a stored password against one provided by user"""
+    salt, hashed = stored_password.split("$")
+    return hashlib.sha256(salt.encode() + provided_password.encode()).hexdigest() == hashed
+
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+    """Create JWT access token"""
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=15)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
 # Models
+class UserCreate(BaseModel):
+    username: str
+    email: str
+    password: str
+    full_name: Optional[str] = None
+
+class UserUpdate(BaseModel):
+    username: Optional[str] = None
+    email: Optional[str] = None
+    password: Optional[str] = None
+    full_name: Optional[str] = None
+    is_active: Optional[bool] = None
+    is_admin: Optional[bool] = None
+
+class User(BaseModel):
+    id: int
+    username: str
+    email: str
+    full_name: Optional[str] = None
+    is_active: bool
+    is_admin: bool
+
+    class Config:
+        orm_mode = True
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class TokenData(BaseModel):
+    username: Optional[str] = None
+
 class ProjectCreate(BaseModel):
     name: str
     description: str
@@ -118,17 +197,174 @@ class AgentStatus(BaseModel):
     status: str
     message: str
 
+# Security dependencies
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
+    """Get current user from JWT token"""
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise credentials_exception
+        token_data = TokenData(username=username)
+    except JWTError:
+        raise credentials_exception
+
+    # Get user from database
+    conn = sqlite3.connect(DATABASE_URL)
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT id, username, email, full_name, is_active, is_admin
+        FROM users
+        WHERE username = ?
+    ''', (token_data.username,))
+
+    user = cursor.fetchone()
+    conn.close()
+
+    if user is None:
+        raise credentials_exception
+
+    return User(
+        id=user[0],
+        username=user[1],
+        email=user[2],
+        full_name=user[3],
+        is_active=user[4],
+        is_admin=user[5]
+    )
+
+def get_current_active_user(current_user: User = Depends(get_current_user)) -> User:
+    """Get current active user"""
+    if not current_user.is_active:
+        raise HTTPException(status_code=400, detail="Inactive user")
+    return current_user
+
+def get_admin_user(current_user: User = Depends(get_current_user)) -> User:
+    """Get current admin user"""
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+    return current_user
+
 # API Endpoints
-@app.post("/projects/")
-async def create_project(project: ProjectCreate):
+@app.post("/token", response_model=Token)
+async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
+    """Login and get access token"""
+    # Get user from database
+    conn = sqlite3.connect(DATABASE_URL)
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT id, username, email, hashed_password, full_name, is_active, is_admin
+        FROM users
+        WHERE username = ?
+    ''', (form_data.username,))
+
+    user = cursor.fetchone()
+    conn.close()
+
+    if not user or not verify_password(user[3], form_data.password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user[1]}, expires_delta=access_token_expires
+    )
+
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@app.post("/users/", response_model=User)
+async def create_user(user: UserCreate, current_user: User = Depends(get_admin_user)):
+    """Create a new user (admin only)"""
+    conn = sqlite3.connect(DATABASE_URL)
+    cursor = conn.cursor()
+
+    # Check if user already exists
+    cursor.execute('''
+        SELECT id FROM users WHERE username = ? OR email = ?
+    ''', (user.username, user.email))
+
+    if cursor.fetchone():
+        conn.close()
+        raise HTTPException(status_code=400, detail="User already exists")
+
+    # Create user
+    hashed_password = hash_password(user.password)
+    cursor.execute('''
+        INSERT INTO users (username, email, hashed_password, full_name)
+        VALUES (?, ?, ?, ?)
+    ''', (user.username, user.email, hashed_password, user.full_name))
+
+    user_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+
+    # Get created user
+    created_user = User(
+        id=user_id,
+        username=user.username,
+        email=user.email,
+        full_name=user.full_name,
+        is_active=True,
+        is_admin=False
+    )
+
+    return created_user
+
+@app.get("/users/me/", response_model=User)
+async def read_users_me(current_user: User = Depends(get_current_active_user)):
+    """Get current user info"""
+    return current_user
+
+@app.get("/users/", response_model=List[User])
+async def get_users(current_user: User = Depends(get_admin_user)):
+    """Get all users (admin only)"""
+    conn = sqlite3.connect(DATABASE_URL)
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT id, username, email, full_name, is_active, is_admin
+        FROM users
+    ''')
+
+    users = []
+    for row in cursor.fetchall():
+        users.append(User(
+            id=row[0],
+            username=row[1],
+            email=row[2],
+            full_name=row[3],
+            is_active=row[4],
+            is_admin=row[5]
+        ))
+
+    conn.close()
+    return users
+
+@app.post("/projects/", response_model=dict)
+async def create_project(
+    project: ProjectCreate,
+    current_user: User = Depends(get_current_active_user)
+):
     """Create a new project"""
     conn = sqlite3.connect(DATABASE_URL)
     cursor = conn.cursor()
 
     cursor.execute('''
-        INSERT INTO projects (name, description)
-        VALUES (?, ?)
-    ''', (project.name, project.description))
+        INSERT INTO projects (name, description, owner_id)
+        VALUES (?, ?, ?)
+    ''', (project.name, project.description, current_user.id))
 
     project_id = cursor.lastrowid
     conn.commit()
@@ -143,16 +379,18 @@ async def create_project(project: ProjectCreate):
 
     return {"message": "Project created successfully", "project_id": project_id}
 
-@app.get("/projects/")
-async def get_projects():
-    """Get all projects"""
+@app.get("/projects/", response_model=dict)
+async def get_projects(current_user: User = Depends(get_current_active_user)):
+    """Get all projects for current user"""
     conn = sqlite3.connect(DATABASE_URL)
     cursor = conn.cursor()
 
+    # Get projects owned by user or where user is a collaborator
     cursor.execute('''
         SELECT id, name, description, status, created_at, updated_at
         FROM projects
-    ''')
+        WHERE owner_id = ?
+    ''', (current_user.id,))
 
     projects = []
     for row in cursor.fetchall():
@@ -168,15 +406,19 @@ async def get_projects():
     conn.close()
     return {"projects": projects}
 
-@app.post("/projects/{project_id}/agents/")
-async def execute_agent(project_id: int, agent_name: str):
+@app.post("/projects/{project_id}/agents/", response_model=dict)
+async def execute_agent(
+    project_id: int,
+    agent_name: str,
+    current_user: User = Depends(get_current_active_user)
+):
     """Execute an agent for a project"""
     # Get project from database
     conn = sqlite3.connect(DATABASE_URL)
     cursor = conn.cursor()
 
     cursor.execute('''
-        SELECT name, description, status
+        SELECT name, description, status, owner_id
         FROM projects
         WHERE id = ?
     ''', (project_id,))
@@ -184,7 +426,12 @@ async def execute_agent(project_id: int, agent_name: str):
     project = cursor.fetchone()
     if not project:
         conn.close()
-        return {"error": "Project not found"}, 404
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    # Check if user has access to the project
+    if project[3] != current_user.id:
+        conn.close()
+        raise HTTPException(status_code=403, detail="Not authorized to access this project")
 
     # Create agent record
     cursor.execute('''
@@ -260,13 +507,26 @@ async def execute_agent(project_id: int, agent_name: str):
             "error": str(e)
         }))
 
-        return {"error": str(e)}, 500
+        raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/projects/{project_id}/agents/")
-async def get_project_agents(project_id: int):
+@app.get("/projects/{project_id}/agents/", response_model=dict)
+async def get_project_agents(
+    project_id: int,
+    current_user: User = Depends(get_current_active_user)
+):
     """Get agents for a project"""
     conn = sqlite3.connect(DATABASE_URL)
     cursor = conn.cursor()
+
+    # Check if user has access to the project
+    cursor.execute('''
+        SELECT owner_id FROM projects WHERE id = ?
+    ''', (project_id,))
+
+    project = cursor.fetchone()
+    if not project or project[0] != current_user.id:
+        conn.close()
+        raise HTTPException(status_code=403, detail="Not authorized to access this project")
 
     cursor.execute('''
         SELECT id, name, status, created_at, updated_at
@@ -287,11 +547,27 @@ async def get_project_agents(project_id: int):
     conn.close()
     return {"agents": agents}
 
-@app.get("/agents/{agent_id}/logs/")
-async def get_agent_logs(agent_id: int):
+@app.get("/agents/{agent_id}/logs/", response_model=dict)
+async def get_agent_logs(
+    agent_id: int,
+    current_user: User = Depends(get_current_active_user)
+):
     """Get logs for an agent"""
     conn = sqlite3.connect(DATABASE_URL)
     cursor = conn.cursor()
+
+    # Check if user has access to the agent
+    cursor.execute('''
+        SELECT p.owner_id
+        FROM agents a
+        JOIN projects p ON a.project_id = p.id
+        WHERE a.id = ?
+    ''', (agent_id,))
+
+    owner = cursor.fetchone()
+    if not owner or owner[0] != current_user.id:
+        conn.close()
+        raise HTTPException(status_code=403, detail="Not authorized to access this agent")
 
     cursor.execute('''
         SELECT message, level, timestamp
