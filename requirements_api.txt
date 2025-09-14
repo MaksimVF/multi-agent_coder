@@ -1,0 +1,6 @@
+
+fastapi>=0.70.0
+uvicorn>=0.15.0
+pydantic>=1.8.0
+sqlite3>=2.6.0
+websockets>=10.0
