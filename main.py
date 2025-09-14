@@ -209,6 +209,25 @@ async def main():
     print(f"  - Implemented components: {len(unified_result.get('code_implementation', {}))}")
     print(f"  - Test status: {unified_result.get('qa_status', 'unknown')}")
 
+    # Demonstrate task decomposition
+    print("\n🎯 Demonstrating Task Decomposition (MetaGPT-inspired):")
+    print("  - Using TaskDecomposer to break down goals into specific tasks")
+
+    # Create and run role coordinator with task decomposer
+    decomposer_coordinator = RoleCoordinator(use_unified_roles=True, use_task_decomposer=True)
+
+    # Run the workflow with task decomposition
+    print("  - Running workflow with task decomposition...")
+    decomposer_result = await decomposer_coordinator.run_workflow(project_requirements)
+
+    # Show results
+    print("  - Task decomposition workflow completed successfully!")
+    print(f"  - Generated architecture: {decomposer_result.get('system_architecture', {}).get('components', [])}")
+    print(f"  - Task list: {len(decomposer_result.get('task_list', []))} tasks")
+    print(f"  - Task documentation:\n{decomposer_result.get('task_documentation', 'No documentation')}")
+    print(f"  - Implemented components: {len(decomposer_result.get('code_implementation', {}))}")
+    print(f"  - Test status: {decomposer_result.get('qa_status', 'unknown')}")
+
 if __name__ == "__main__":
     asyncio.run(main())
 
