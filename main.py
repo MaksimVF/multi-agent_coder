@@ -280,6 +280,34 @@ async def main():
     print(f"  - Git status: {full_result.get('git_status', {}).get('status', 'unknown')}")
     print(f"  - Test status: {full_result.get('qa_status', 'unknown')}")
 
+    # Demonstrate workflow with TestRunner
+    print("\n🧪 Demonstrating Workflow with TestRunner (Devika-inspired):")
+    print("  - Using TestRunner for automated testing and error fixing")
+
+    # Create and run role coordinator with TestRunner
+    test_runner_coordinator = RoleCoordinator(
+        use_unified_roles=True,
+        use_task_decomposer=True,
+        use_reviewer=True,
+        use_full_workflow=True,
+        use_test_runner=True
+    )
+
+    # Run the workflow with TestRunner
+    print("  - Running workflow with TestRunner...")
+    test_runner_result = await test_runner_coordinator.run_workflow(project_requirements)
+
+    # Show results
+    print("  - TestRunner workflow completed!")
+    print(f"  - Test results: {test_runner_result.get('test_results', {}).get('status', 'unknown')}")
+    print(f"  - Tests run: {test_runner_result.get('test_results', {}).get('tests_run', 0)}")
+    print(f"  - Tests passed: {test_runner_result.get('test_results', {}).get('tests_passed', 0)}")
+    print(f"  - Tests failed: {test_runner_result.get('test_results', {}).get('tests_failed', 0)}")
+    print(f"  - Coverage: {test_runner_result.get('test_results', {}).get('coverage', 0):.1f}%")
+    print(f"  - Fix attempts: {test_runner_result.get('fix_attempts', 0)}")
+    print(f"  - Error logs: {len(test_runner_result.get('error_logs', {}).get('error_logs', []))}")
+    print(f"  - Git status: {test_runner_result.get('git_status', {}).get('status', 'unknown')}")
+
 if __name__ == "__main__":
     asyncio.run(main())
 

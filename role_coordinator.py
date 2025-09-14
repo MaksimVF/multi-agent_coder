@@ -11,11 +11,12 @@ from roles.reviewer import Reviewer
 from roles.documentation_specialist import DocumentationSpecialist
 from roles.project_manager import ProjectManager
 from roles.git_integrator import GitIntegrator
+from roles.test_runner import TestRunner
 
 class RoleCoordinator:
     """Coordinates the execution of different roles in the development process"""
 
-    def __init__(self, use_unified_roles: bool = False, use_task_decomposer: bool = False, use_reviewer: bool = False, use_full_workflow: bool = False):
+    def __init__(self, use_unified_roles: bool = False, use_task_decomposer: bool = False, use_reviewer: bool = False, use_full_workflow: bool = False, use_test_runner: bool = False):
         if use_full_workflow:
             # Full workflow with all roles
             if use_unified_roles:
@@ -25,20 +26,34 @@ class RoleCoordinator:
                     "TaskDecomposer": TaskDecomposer(),
                     "DeveloperEngineer": DeveloperEngineer(),
                     "Reviewer": Reviewer(),
+                    "TestRunner": TestRunner(),
                     "TesterQa": TesterQa(),
                     "DocumentationSpecialist": DocumentationSpecialist(),
                     "GitIntegrator": GitIntegrator()
                 }
-                self.workflow = [
-                    "ProjectManager",
-                    "AnalystArchitect",
-                    "TaskDecomposer",
-                    "DeveloperEngineer",
-                    "Reviewer",
-                    "TesterQa",
-                    "DocumentationSpecialist",
-                    "GitIntegrator"
-                ]
+                if use_test_runner:
+                    self.workflow = [
+                        "ProjectManager",
+                        "AnalystArchitect",
+                        "TaskDecomposer",
+                        "DeveloperEngineer",
+                        "Reviewer",
+                        "TestRunner",
+                        "TesterQa",
+                        "DocumentationSpecialist",
+                        "GitIntegrator"
+                    ]
+                else:
+                    self.workflow = [
+                        "ProjectManager",
+                        "AnalystArchitect",
+                        "TaskDecomposer",
+                        "DeveloperEngineer",
+                        "Reviewer",
+                        "TesterQa",
+                        "DocumentationSpecialist",
+                        "GitIntegrator"
+                    ]
             else:
                 self.roles = {
                     "ProjectManager": ProjectManager(),
@@ -47,21 +62,36 @@ class RoleCoordinator:
                     "TaskDecomposer": TaskDecomposer(),
                     "Engineer": Engineer(),
                     "Reviewer": Reviewer(),
+                    "TestRunner": TestRunner(),
                     "QaEngineer": QaEngineer(),
                     "DocumentationSpecialist": DocumentationSpecialist(),
                     "GitIntegrator": GitIntegrator()
                 }
-                self.workflow = [
-                    "ProjectManager",
-                    "ProductManager",
-                    "Architect",
-                    "TaskDecomposer",
-                    "Engineer",
-                    "Reviewer",
-                    "QaEngineer",
-                    "DocumentationSpecialist",
-                    "GitIntegrator"
-                ]
+                if use_test_runner:
+                    self.workflow = [
+                        "ProjectManager",
+                        "ProductManager",
+                        "Architect",
+                        "TaskDecomposer",
+                        "Engineer",
+                        "Reviewer",
+                        "TestRunner",
+                        "QaEngineer",
+                        "DocumentationSpecialist",
+                        "GitIntegrator"
+                    ]
+                else:
+                    self.workflow = [
+                        "ProjectManager",
+                        "ProductManager",
+                        "Architect",
+                        "TaskDecomposer",
+                        "Engineer",
+                        "Reviewer",
+                        "QaEngineer",
+                        "DocumentationSpecialist",
+                        "GitIntegrator"
+                    ]
         else:
             # Standard workflow
             if use_unified_roles:
