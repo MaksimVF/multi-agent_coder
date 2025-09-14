@@ -64,6 +64,13 @@ async def main():
     workflow.add_agent("optimizer", optimizer)
     workflow.add_agent("researcher", researcher)
 
+    # Demonstrate enhanced event system capabilities
+    print("\n📡 Enhanced Event System Features:")
+    print("  - Event prioritization and validation")
+    print("  - Middleware processing pipeline")
+    print("  - Advanced filtering and querying")
+    print("  - Improved error handling and recovery")
+
     # Define a sample task
     sample_task = {
         "id": "task_001",
@@ -115,6 +122,20 @@ async def main():
 
     # Close memory manager
     memory_manager.close()
+
+    # Demonstrate enhanced event system features
+    print("\n📊 Event System Statistics:")
+    event_history = workflow.event_bus.get_event_history(limit=20)
+    print(f"  Total events processed: {len(event_history)}")
+
+    # Show event types
+    event_types = set(event.event_type for event in event_history)
+    print(f"  Event types: {', '.join(str(et.name) for et in event_types)}")
+
+    # Show priority distribution
+    from collections import Counter
+    priorities = Counter(event.priority for event in event_history)
+    print(f"  Priority distribution: {dict(priorities)}")
 
 if __name__ == "__main__":
     asyncio.run(main())

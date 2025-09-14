@@ -102,7 +102,15 @@ class AgentWorkflow:
         self.graph = AgentGraph()
         self.nodes = {}
         self.memory_manager = memory_manager
-        self.event_bus = EventBus()
+
+        # Initialize enhanced event bus with middleware
+        self.event_bus = EventBus(max_history=1000)
+
+        # Add middleware for logging, validation, and auditing
+        from event_system import LoggingMiddleware, AuditMiddleware
+        self.event_bus.add_middleware(LoggingMiddleware())
+        self.event_bus.add_middleware(AuditMiddleware())
+
         self.state = {
             "task": None,
             "subtasks": [],
@@ -142,9 +150,22 @@ class AgentWorkflow:
         # Update workflow state
 
     async def _handle_error(self, event: AgentEvent):
-        """Handle error events."""
-        print(f"Error occurred: {event.data.get('error')}")
-        self.state["errors"].append(event.data.get("error", "Unknown error"))
+        """Handle error events with enhanced error information."""
+        error_data = event.data
+        error_msg = error_data.get('error', 'Unknown error')
+        error_type = error_data.get('error_type', 'GeneralError')
+        original_event = error_data.get('original_event', {})
+
+        print(f"⚠️ Error occurred: {error_type} - {error_msg}")
+        print(f"   Original event: {original_event.get('event_type', 'Unknown')} from {original_event.get('source', 'Unknown')}")
+
+        # Store detailed error information
+        self.state["errors"].append({
+            "error": error_msg,
+            "error_type": error_type,
+            "timestamp": datetime.now().isoformat(),
+            "original_event": original_event
+        })
 
     def add_agent(self, agent_name: str, agent_instance: Any) -> None:
         """
@@ -211,20 +232,29 @@ class AgentWorkflow:
     async def execute_workflow(self) -> Dict:
         """
         Execute the workflow with enhanced features including:
-        - Event-driven communication
+        - Event-driven communication with prioritization
         - Advanced code generation
-        - Improved error handling
+        - Improved error handling with validation
         - Dynamic agent discovery
+        - Middleware processing
+        - Enhanced event tracking
 
         Returns:
             Workflow results
         """
-        # Publish task started event
+        # Publish task started event with enhanced features
+        from event_system import EventPriority, TaskEventDataSchema
         await self.event_bus.publish(
             AgentEvent(
                 event_type=EventType.TASK_UPDATED,
                 source="workflow",
-                data={"status": "running", "task_id": self.state["task_id"]}
+                data={
+                    "status": "running",
+                    "task_id": self.state["task_id"],
+                    "description": self.state["task"].get("description", "Unnamed task")
+                },
+                priority=EventPriority.HIGH,
+                schema=TaskEventDataSchema
             )
         )
 
@@ -392,7 +422,8 @@ class AgentWorkflow:
 
                 self.state["results"][f"subtask_{i}_optimized"] = optimized_code
 
-                # Publish subtask completed event
+                # Publish subtask completed event with enhanced features
+                from event_system import SubtaskEventDataSchema
                 await self.event_bus.publish(
                     AgentEvent(
                         event_type=EventType.SUBTASK_COMPLETED,
@@ -400,8 +431,11 @@ class AgentWorkflow:
                         data={
                             "subtask_id": f"subtask_{i}",
                             "task_id": self.state["task_id"],
-                            "status": "completed"
-                        }
+                            "status": "completed",
+                            "description": subtask.get("description", f"Subtask {i}")
+                        },
+                        priority=EventPriority.NORMAL,
+                        schema=SubtaskEventDataSchema
                     )
                 )
 
