@@ -64,7 +64,7 @@ Return the analysis as valid JSON in the following format:
         # Call LLM to analyze the task
         try:
             llm_response = await self._call_llm(prompt)
-            response_text = llm_response.get("content", "{}")
+            response_text = llm_response.get("response", "{}")
 
             # Try to parse the JSON response
             try:
@@ -79,8 +79,8 @@ Return the analysis as valid JSON in the following format:
                     print(f"  - {subtask.get('description', 'Unknown')}")
 
                 return subtasks
-            except json.JSONDecodeError:
-                print("⚠️  LLM response not valid JSON, falling back to manual parsing")
+            except json.JSONDecodeError as e:
+                print(f"⚠️  LLM response not valid JSON: {e}, falling back to manual parsing")
                 # Fallback: Extract subtasks from text response with AI-enhanced parsing
                 return await self._parse_subtasks_response(response_text, task_description)
 

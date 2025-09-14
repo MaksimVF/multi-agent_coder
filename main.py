@@ -21,6 +21,7 @@ try:
     from agent_registry import AgentRegistry
     from event_system import EventBus, EventType
     from advanced_code_generator import AdvancedCodeGenerator
+    from problem_solver import ProblemSolver, ProblemContext
 except ImportError as e:
     print(f"Error importing agent modules: {e}")
     raise
@@ -136,6 +137,33 @@ async def main():
     from collections import Counter
     priorities = Counter(event.priority for event in event_history)
     print(f"  Priority distribution: {dict(priorities)}")
+
+    # Demonstrate Problem Solver functionality
+    print("\n🔧 Demonstrating Problem Solver Capabilities:")
+
+    # Create a problem solver
+    problem_solver = ProblemSolver({
+        'max_iterations': 10,
+        'output_dir': 'problem_solver_demo'
+    })
+
+    # Define a sample problem
+    sample_problem = ProblemContext(
+        problem_id="demo_problem_1",
+        problem_type="bug",
+        title="Fix Fibonacci function bug",
+        description="The Fibonacci function fails with large inputs due to recursion depth issues",
+        repository_path=os.getcwd()
+    )
+
+    # Solve the problem
+    print("  - Solving sample problem...")
+    solver_result = await problem_solver.solve_problem(sample_problem)
+
+    # Show results
+    print(f"  - Problem solved: {solver_result.get('success', False)}")
+    print(f"  - Iterations: {solver_result.get('iterations', 0)}")
+    print(f"  - Agents used: {', '.join(solver_result.get('agents_used', []))}")
 
 if __name__ == "__main__":
     asyncio.run(main())

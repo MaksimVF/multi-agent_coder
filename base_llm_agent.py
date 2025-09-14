@@ -87,6 +87,84 @@ class BaseLLMAgent:
 
         return api_key
 
+    async def _generate_mock_response(self, prompt: str, system_message: Optional[str] = None) -> str:
+        """
+        Generate a mock response based on the prompt.
+
+        Args:
+            prompt: The input prompt
+            system_message: Optional system message for context
+
+        Returns:
+            Mock response string
+        """
+        # Simple mock logic based on prompt content
+        prompt_lower = prompt.lower()
+
+        # Mock responses for common patterns
+        if "analysis" in prompt_lower or "subtasks" in prompt_lower or "break it down" in prompt_lower:
+            return """{
+                "analysis_summary": {
+                    "task_complexity": "medium",
+                    "main_domains": ["programming", "mathematics"],
+                    "key_challenges": ["input validation", "edge cases"],
+                    "suggested_approach": "iterative development"
+                },
+                "subtasks": [
+                    {
+                        "description": "Create function signature",
+                        "expected_output": "Function definition with type hints",
+                        "dependencies": [],
+                        "difficulty": "easy",
+                        "required_skills": ["python"],
+                        "potential_challenges": ["naming"],
+                        "suggested_approach": "standard",
+                        "time_estimate": "low"
+                    },
+                    {
+                        "description": "Implement function logic",
+                        "expected_output": "Working implementation",
+                        "dependencies": ["Create function signature"],
+                        "difficulty": "medium",
+                        "required_skills": ["python", "algorithms"],
+                        "potential_challenges": ["edge cases"],
+                        "suggested_approach": "iterative",
+                        "time_estimate": "medium"
+                    }
+                ]
+            }"""
+        elif "add" in prompt_lower and "function" in prompt_lower:
+            return """{
+                "description": "Add function implementation",
+                "code": "def add(a: float, b: float) -> float:\\n    \\\"\\\"\\\"Add two numbers and return the result.\\\"\\\"\\\"\\n    return a + b",
+                "language": "python"
+            }"""
+        elif "subtract" in prompt_lower and "function" in prompt_lower:
+            return """{
+                "description": "Subtract function implementation",
+                "code": "def subtract(a: float, b: float) -> float:\\n    \\\"\\\"\\\"Subtract the second number from the first and return the result.\\\"\\\"\\\"\\n    return a - b",
+                "language": "python"
+            }"""
+        elif "multiply" in prompt_lower and "function" in prompt_lower:
+            return """{
+                "description": "Multiply function implementation",
+                "code": "def multiply(a: float, b: float) -> float:\\n    \\\"\\\"\\\"Multiply two numbers and return the result.\\\"\\\"\\\"\\n    return a * b",
+                "language": "python"
+            }"""
+        elif "python" in prompt_lower and "code" in prompt_lower:
+            return """{
+                "description": "Python function implementation",
+                "code": "def example_function(x: int) -> int:\\n    \\\"\\\"\\\"Example function.\\\"\\\"\\\"\\n    return x * 2",
+                "language": "python"
+            }"""
+        else:
+            # Generic mock response
+            return """{
+                "description": "Mock implementation",
+                "code": "# Mock code implementation\\ndef mock_function():\\n    pass",
+                "language": "python"
+            }"""
+
     async def _call_llm(self, prompt: str, system_message: Optional[str] = None) -> Dict[str, Any]:
         """
         Call the LLM with a prompt.
@@ -98,6 +176,17 @@ class BaseLLMAgent:
         Returns:
             Dictionary with LLM response
         """
+        # Check if we're in mock mode
+        if self.litellm_config["api_key"] == "mock_key":
+            print("🤖 Using mock mode for LLM call")
+            # Generate a mock response based on the prompt
+            mock_response = await self._generate_mock_response(prompt, system_message)
+            return {
+                "success": True,
+                "response": mock_response,
+                "usage": {"total_tokens": 0, "prompt_tokens": 0, "completion_tokens": 0}
+            }
+
         try:
             # Prepare messages
             messages = []

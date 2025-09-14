@@ -5,6 +5,8 @@ unittest2>=1.0  # For enhanced unit testing capabilities
 aiohttp>=3.0  # For async HTTP requests in Researcher
 beautifulsoup4>=4.0  # For HTML parsing in Researcher
 pydantic>=1.0  # For data validation in enhanced event system
+httpx>=0.23.0  # For HTTP requests in issue handlers
+pytest>=7.0  # For testing support in problem solver
 
 # LLM and Agent Framework dependencies
 litellm>=1.0  # For LLM integration
@@ -21,3 +23,6 @@ pyyaml>=6.0  # For YAML metadata parsing
 
 # Security and Sandbox dependencies
 docker>=6.0  # For Docker sandbox integration
+
+# Problem Solver dependencies
+jinja2>=3.0  # For prompt templating in problem solver

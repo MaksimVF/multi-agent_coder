@@ -1,0 +1,18 @@
+{
+  "problem_id": "test_problem_1",
+  "success": true,
+  "message": "Problem solved successfully",
+  "changes": [],
+  "iterations": 1,
+  "agents_used": [],
+  "summary": {
+    "problem_id": "test_problem_1",
+    "problem_type": "task",
+    "title": "Create Math Function",
+    "success": true,
+    "iterations": 1,
+    "agents_used": [],
+    "changes_made": 0,
+    "message": "Problem solved successfully"
+  }
+}
