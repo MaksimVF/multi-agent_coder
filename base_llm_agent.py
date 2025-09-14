@@ -21,6 +21,15 @@ except ImportError:
     print("Warning: memory_manager not found. Memory features will be disabled.")
     MemoryManager = None
 
+# Import security module
+try:
+    from security import SecurityRisk, SecurityAnalyzer, BasicSecurityAnalyzer
+except ImportError:
+    print("Warning: security module not found. Security features will be disabled.")
+    SecurityRisk = None
+    SecurityAnalyzer = None
+    BasicSecurityAnalyzer = None
+
 class BaseLLMAgent:
     """Base class for LLM-powered agents."""
 
@@ -59,6 +68,11 @@ class BaseLLMAgent:
 
         # Microagent knowledge cache
         self.microagent_cache = {}
+
+        # Security analyzer
+        self.security_analyzer = None
+        if SecurityAnalyzer is not None:
+            self.security_analyzer = BasicSecurityAnalyzer()
 
     def _get_api_key(self) -> Optional[str]:
         """Get API key from environment variables."""
@@ -240,6 +254,26 @@ class BaseLLMAgent:
         """
         if self.memory_manager:
             self.memory_manager.consolidate_memory(task_id, self.__class__.__name__)
+
+    async def analyze_security_risk(self, action: Any) -> Optional[int]:
+        """
+        Analyze an action for security risks.
+
+        Args:
+            action: The action to analyze
+
+        Returns:
+            SecurityRisk: The security risk level, or None if security analysis is disabled
+        """
+        if not self.security_analyzer:
+            return None
+
+        try:
+            risk = await self.security_analyzer.analyze_action(action)
+            return risk
+        except Exception as e:
+            print(f"Error analyzing security risk: {e}")
+            return None
 
     def get_recent_memory(self, hours: int = 24, limit: int = 10) -> List[Dict]:
         """

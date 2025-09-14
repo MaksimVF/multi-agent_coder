@@ -21,6 +21,15 @@ from typing import Dict, Any, Optional
 
 from base_llm_agent import BaseLLMAgent
 
+# Import security module
+try:
+    from security import SecurityRisk, SecurityAnalyzer, BasicSecurityAnalyzer
+except ImportError:
+    print("Warning: security module not found. Security features will be disabled.")
+    SecurityRisk = None
+    SecurityAnalyzer = None
+    BasicSecurityAnalyzer = None
+
 class Tester(BaseLLMAgent):
     """LLM-powered Tester agent for code testing and validation."""
 
@@ -47,6 +56,11 @@ class Tester(BaseLLMAgent):
         self.docker_timeout = 30  # seconds
         self.docker_memory_limit = "512m"
         self.docker_cpu_limit = 1.0
+
+        # Security configuration
+        self.security_analyzer = None
+        if SecurityAnalyzer is not None:
+            self.security_analyzer = BasicSecurityAnalyzer()
 
         try:
             import docker
@@ -629,175 +643,222 @@ if __name__ == "__main__":
             }
 
     async def _security_test(self, code, language, description):
-        """Run basic security checks.
+        """Run basic security checks with enhanced security analysis."""
+        try:
+            # Create a mock action for security analysis
+            class MockAction:
+                def __init__(self, code, language):
+                    self.code = code
+                    self.language = language
+                    self.description = description
 
-        TODO: Enhance security by implementing:
-        1. Docker-based sandboxing for code execution
-        2. Integration with static analysis tools (Bandit, ESLint, etc.)
-        3. Network isolation for executed code
-        4. Filesystem restrictions
-        5. Comprehensive security testing for all supported languages
-        """
-        if language == "python":
-            try:
-                # Check for common security issues
-                security_issues = []
+            action = MockAction(code, language)
 
-                # Check for eval() usage
-                if "eval(" in code:
-                    security_issues.append("Potential security issue: eval() usage detected")
+            # Perform security analysis
+            security_risk = None
+            if self.security_analyzer:
+                security_risk = await self.security_analyzer.analyze_action(action)
 
-                # Check for pickle usage
-                if "pickle" in code:
-                    security_issues.append("Potential security issue: pickle usage detected")
-
-                # Check for hardcoded credentials
-                import re
-                credential_patterns = [
-                    r"password\s*=\s*['\"][^'\"]*['\"]",
-                    r"secret\s*=\s*['\"][^'\"]*['\"]",
-                    r"api_key\s*=\s*['\"][^'\"]*['\"]",
-                    r"token\s*=\s*['\"][^'\"]*['\"]"
-                ]
-
-                for pattern in credential_patterns:
-                    if re.search(pattern, code, re.IGNORECASE):
-                        security_issues.append(f"Potential security issue: hardcoded credentials detected")
-
-                # Check for SQL injection vulnerabilities
-                if re.search(r"\.execute\s*\(.*?\s*\+\s.*?\)", code):
-                    security_issues.append("Potential security issue: SQL injection risk detected")
-
-                if security_issues:
-                    return {
-                        "description": description,
-                        "passed": False,
-                        "error": "Security issues found",
-                        "security_issues": security_issues,
-                        "test_type": "security"
-                    }
-                else:
-                    return {
-                        "description": description,
-                        "passed": True,
-                        "output": "No security issues found",
-                        "test_type": "security"
-                    }
-            except Exception as e:
+            # Run language-specific security checks
+            if language == "python":
+                return await self._python_security_test(code, description, security_risk)
+            elif language == "javascript":
+                return await self._javascript_security_test(code, description, security_risk)
+            elif language == "java":
+                return await self._java_security_test(code, description, security_risk)
+            else:
                 return {
                     "description": description,
                     "passed": False,
-                    "error": str(e),
-                    "traceback": traceback.format_exc(),
+                    "error": f"Security testing not yet supported for {language}",
                     "test_type": "security"
                 }
-        elif language == "javascript":
-            try:
-                # Check for common JavaScript security issues
-                security_issues = []
 
-                # Check for eval() usage
-                if "eval(" in code:
-                    security_issues.append("Potential security issue: eval() usage detected")
-
-                # Check for innerHTML usage (XSS risk)
-                if ".innerHTML" in code:
-                    security_issues.append("Potential security issue: innerHTML usage detected (XSS risk)")
-
-                # Check for hardcoded credentials
-                import re
-                credential_patterns = [
-                    r"password\s*=\s*['\"][^'\"]*['\"]",
-                    r"secret\s*=\s*['\"][^'\"]*['\"]",
-                    r"api_key\s*=\s*['\"][^'\"]*['\"]",
-                    r"token\s*=\s*['\"][^'\"]*['\"]"
-                ]
-
-                for pattern in credential_patterns:
-                    if re.search(pattern, code, re.IGNORECASE):
-                        security_issues.append(f"Potential security issue: hardcoded credentials detected")
-
-                # Check for SQL injection vulnerabilities
-                if re.search(r"\.query\s*\(.*?\s*\+\s.*?\)", code):
-                    security_issues.append("Potential security issue: SQL injection risk detected")
-
-                if security_issues:
-                    return {
-                        "description": description,
-                        "passed": False,
-                        "error": "Security issues found",
-                        "security_issues": security_issues,
-                        "test_type": "security"
-                    }
-                else:
-                    return {
-                        "description": description,
-                        "passed": True,
-                        "output": "No security issues found",
-                        "test_type": "security"
-                    }
-            except Exception as e:
-                return {
-                    "description": description,
-                    "passed": False,
-                    "error": str(e),
-                    "traceback": traceback.format_exc(),
-                    "test_type": "security"
-                }
-        elif language == "java":
-            try:
-                # Check for common Java security issues
-                security_issues = []
-
-                # Check for Runtime.exec usage
-                if "Runtime.getRuntime().exec" in code:
-                    security_issues.append("Potential security issue: Runtime.exec usage detected")
-
-                # Check for hardcoded credentials
-                import re
-                credential_patterns = [
-                    r"password\s*=\s*['\"][^'\"]*['\"]",
-                    r"secret\s*=\s*['\"][^'\"]*['\"]",
-                    r"api_key\s*=\s*['\"][^'\"]*['\"]",
-                    r"token\s*=\s*['\"][^'\"]*['\"]"
-                ]
-
-                for pattern in credential_patterns:
-                    if re.search(pattern, code, re.IGNORECASE):
-                        security_issues.append(f"Potential security issue: hardcoded credentials detected")
-
-                # Check for SQL injection vulnerabilities
-                if re.search(r"Statement\.executeQuery\s*\(.*?\s*\+\s.*?\)", code):
-                    security_issues.append("Potential security issue: SQL injection risk detected")
-
-                if security_issues:
-                    return {
-                        "description": description,
-                        "passed": False,
-                        "error": "Security issues found",
-                        "security_issues": security_issues,
-                        "test_type": "security"
-                    }
-                else:
-                    return {
-                        "description": description,
-                        "passed": True,
-                        "output": "No security issues found",
-                        "test_type": "security"
-                    }
-            except Exception as e:
-                return {
-                    "description": description,
-                    "passed": False,
-                    "error": str(e),
-                    "traceback": traceback.format_exc(),
-                    "test_type": "security"
-                }
-        else:
+        except Exception as e:
             return {
                 "description": description,
                 "passed": False,
-                "error": f"Security testing not yet supported for {language}",
+                "error": str(e),
+                "traceback": traceback.format_exc(),
+                "test_type": "security"
+            }
+
+    async def _python_security_test(self, code, description, security_risk=None):
+        """Run Python-specific security checks."""
+        try:
+            # Check for common security issues
+            security_issues = []
+
+            # Check for eval() usage
+            if "eval(" in code:
+                security_issues.append("Potential security issue: eval() usage detected")
+
+            # Check for pickle usage
+            if "pickle" in code:
+                security_issues.append("Potential security issue: pickle usage detected")
+
+            # Check for hardcoded credentials
+            import re
+            credential_patterns = [
+                r"password\s*=\s*['\"][^'\"]*['\"]",
+                r"secret\s*=\s*['\"][^'\"]*['\"]",
+                r"api_key\s*=\s*['\"][^'\"]*['\"]",
+                r"token\s*=\s*['\"][^'\"]*['\"]"
+            ]
+
+            for pattern in credential_patterns:
+                if re.search(pattern, code, re.IGNORECASE):
+                    security_issues.append(f"Potential security issue: hardcoded credentials detected")
+
+            # Check for SQL injection vulnerabilities
+            if re.search(r"\.execute\s*\(.*?\s*\+\s.*?\)", code):
+                security_issues.append("Potential security issue: SQL injection risk detected")
+
+            # Add security risk from analyzer
+            if security_risk is not None:
+                security_issues.append(f"Security risk level: {security_risk.name}")
+
+            if security_issues:
+                return {
+                    "description": description,
+                    "passed": False,
+                    "error": "Security issues found",
+                    "security_issues": security_issues,
+                    "security_risk": security_risk.value if security_risk else None,
+                    "test_type": "security"
+                }
+            else:
+                return {
+                    "description": description,
+                    "passed": True,
+                    "output": "No security issues found",
+                    "security_risk": security_risk.value if security_risk else None,
+                    "test_type": "security"
+                }
+        except Exception as e:
+            return {
+                "description": description,
+                "passed": False,
+                "error": str(e),
+                "traceback": traceback.format_exc(),
+                "test_type": "security"
+            }
+
+    async def _javascript_security_test(self, code, description, security_risk=None):
+        """Run JavaScript-specific security checks."""
+        try:
+            # Check for common JavaScript security issues
+            security_issues = []
+
+            # Check for eval() usage
+            if "eval(" in code:
+                security_issues.append("Potential security issue: eval() usage detected")
+
+            # Check for innerHTML usage (XSS risk)
+            if ".innerHTML" in code:
+                security_issues.append("Potential security issue: innerHTML usage detected (XSS risk)")
+
+            # Check for hardcoded credentials
+            import re
+            credential_patterns = [
+                r"password\s*=\s*['\"][^'\"]*['\"]",
+                r"secret\s*=\s*['\"][^'\"]*['\"]",
+                r"api_key\s*=\s*['\"][^'\"]*['\"]",
+                r"token\s*=\s*['\"][^'\"]*['\"]"
+            ]
+
+            for pattern in credential_patterns:
+                if re.search(pattern, code, re.IGNORECASE):
+                    security_issues.append(f"Potential security issue: hardcoded credentials detected")
+
+            # Check for SQL injection vulnerabilities
+            if re.search(r"\.query\s*\(.*?\s*\+\s.*?\)", code):
+                security_issues.append("Potential security issue: SQL injection risk detected")
+
+            # Add security risk from analyzer
+            if security_risk is not None:
+                security_issues.append(f"Security risk level: {security_risk.name}")
+
+            if security_issues:
+                return {
+                    "description": description,
+                    "passed": False,
+                    "error": "Security issues found",
+                    "security_issues": security_issues,
+                    "security_risk": security_risk.value if security_risk else None,
+                    "test_type": "security"
+                }
+            else:
+                return {
+                    "description": description,
+                    "passed": True,
+                    "output": "No security issues found",
+                    "security_risk": security_risk.value if security_risk else None,
+                    "test_type": "security"
+                }
+        except Exception as e:
+            return {
+                "description": description,
+                "passed": False,
+                "error": str(e),
+                "traceback": traceback.format_exc(),
+                "test_type": "security"
+            }
+
+    async def _java_security_test(self, code, description, security_risk=None):
+        """Run Java-specific security checks."""
+        try:
+            # Check for common Java security issues
+            security_issues = []
+
+            # Check for Runtime.exec usage
+            if "Runtime.getRuntime().exec" in code:
+                security_issues.append("Potential security issue: Runtime.exec usage detected")
+
+            # Check for hardcoded credentials
+            import re
+            credential_patterns = [
+                r"password\s*=\s*['\"][^'\"]*['\"]",
+                r"secret\s*=\s*['\"][^'\"]*['\"]",
+                r"api_key\s*=\s*['\"][^'\"]*['\"]",
+                r"token\s*=\s*['\"][^'\"]*['\"]"
+            ]
+
+            for pattern in credential_patterns:
+                if re.search(pattern, code, re.IGNORECASE):
+                    security_issues.append(f"Potential security issue: hardcoded credentials detected")
+
+            # Check for SQL injection vulnerabilities
+            if re.search(r"Statement\.executeQuery\s*\(.*?\s*\+\s.*?\)", code):
+                security_issues.append("Potential security issue: SQL injection risk detected")
+
+            # Add security risk from analyzer
+            if security_risk is not None:
+                security_issues.append(f"Security risk level: {security_risk.name}")
+
+            if security_issues:
+                return {
+                    "description": description,
+                    "passed": False,
+                    "error": "Security issues found",
+                    "security_issues": security_issues,
+                    "security_risk": security_risk.value if security_risk else None,
+                    "test_type": "security"
+                }
+            else:
+                return {
+                    "description": description,
+                    "passed": True,
+                    "output": "No security issues found",
+                    "security_risk": security_risk.value if security_risk else None,
+                    "test_type": "security"
+                }
+        except Exception as e:
+            return {
+                "description": description,
+                "passed": False,
+                "error": str(e),
+                "traceback": traceback.format_exc(),
                 "test_type": "security"
             }
 

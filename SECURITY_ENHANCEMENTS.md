@@ -41,19 +41,40 @@ This document outlines the security enhancements implemented in the Multi-Agent 
 - **Error handling**: Comprehensive exception handling for all execution paths
 - **Docker integration**: Automatic Docker sandbox usage when available
 
-### 3. Security Testing
+### 3. Security Testing (Enhanced)
 
-**Status**: Implemented
+**Status**: Implemented with LLM-based analysis
 
-**Files**: `tester.py`
+**Files**:
+- `tester.py` - Security testing implementation
+- `security/__init__.py` - Security analyzer base classes
+- `security/llm_analyzer.py` - LLM-based security analysis
 
 **Features**:
 - **Static analysis**: Basic security pattern detection
+- **LLM-based analysis**: Advanced security risk assessment using language models
+- **Hybrid analysis**: Combination of rule-based and LLM-based analysis
 - **Dynamic testing**: Runtime behavior monitoring
 - **Language support**: Python, JavaScript, Java, C#
 - **Vulnerability detection**: Common security issues (injections, unsafe practices)
+- **Security risk classification**: LOW, MEDIUM, HIGH risk levels
 
-### 4. Memory and Data Security
+### 4. Action Security Analysis (New)
+
+**Status**: Implemented
+
+**Files**:
+- `security/__init__.py` - Basic security analyzer
+- `security/llm_analyzer.py` - LLM-based security analyzer
+- `base_llm_agent.py` - Security analysis integration
+
+**Features**:
+- **Security risk classification**: Actions are analyzed for security risks
+- **Multiple analyzer types**: Basic rule-based, LLM-based, and hybrid analyzers
+- **Integration with agents**: All agents can analyze actions for security risks
+- **Extensible architecture**: Easy to add new security analysis capabilities
+
+### 5. Memory and Data Security
 
 **Status**: Basic implementation
 
@@ -73,6 +94,7 @@ This document outlines the security enhancements implemented in the Multi-Agent 
 3. **Implement AppArmor/SELinux profiles** for container security
 4. **Add code signing** for Docker images
 5. **Enhance static analysis** with Bandit/Semgrep integration
+6. **Implement action confirmation** for high-risk operations
 
 ### Medium-term Enhancements
 
@@ -81,6 +103,7 @@ This document outlines the security enhancements implemented in the Multi-Agent 
 3. **Implement audit logging** for all code executions
 4. **Add rate limiting** to prevent DoS attacks
 5. **Enhance memory encryption** for sensitive data
+6. **Integrate with security tools** like Snyk, Semgrep, Bandit
 
 ### Long-term Enhancements
 
@@ -97,6 +120,7 @@ This document outlines the security enhancements implemented in the Multi-Agent 
 3. **Update regularly**: Keep Docker images and dependencies up-to-date
 4. **Restrict network**: Ensure containers have minimal network access
 5. **Audit logs**: Regularly review execution logs for anomalies
+6. **Use security testing**: Always run security tests on untrusted code
 
 ## Setup Instructions
 
@@ -122,6 +146,26 @@ tester = Tester()
 result = await tester.test_code(code_data, subtask, language="python", test_type="security")
 ```
 
+### Security Analysis
+
+Use the security analyzers directly:
+
+```python
+from security import BasicSecurityAnalyzer, LLMSecurityAnalyzer, HybridSecurityAnalyzer
+
+# Basic analyzer
+basic_analyzer = BasicSecurityAnalyzer()
+risk = await basic_analyzer.analyze_action(your_action)
+
+# LLM analyzer
+llm_analyzer = LLMSecurityAnalyzer()
+risk = await llm_analyzer.analyze_action(your_action)
+
+# Hybrid analyzer
+hybrid_analyzer = HybridSecurityAnalyzer()
+risk = await hybrid_analyzer.analyze_action(your_action)
+```
+
 ## Threat Model
 
 ### Attack Vectors
@@ -130,6 +174,7 @@ result = await tester.test_code(code_data, subtask, language="python", test_type
 2. **Resource exhaustion**: Mitigated by strict resource limits
 3. **Data exfiltration**: Mitigated by network restrictions and environment isolation
 4. **Privilege escalation**: Mitigated by non-root execution and container security
+5. **Code injection**: Mitigated by security analysis and static code checking
 
 ### Assumptions
 
@@ -137,6 +182,7 @@ result = await tester.test_code(code_data, subtask, language="python", test_type
 2. Host system has basic security hardening
 3. Network is properly segmented
 4. Regular security updates are applied
+5. Security analyzers are properly configured
 
 ## Incident Response
 
@@ -145,5 +191,13 @@ result = await tester.test_code(code_data, subtask, language="python", test_type
 3. **Analysis**: Examine container logs and filesystem
 4. **Remediation**: Update security policies and Docker images
 5. **Reporting**: Document incidents and share with security team
+
+## Demo
+
+Run the security analysis demo:
+
+```bash
+python demo_security_analysis.py
+```
 
 
