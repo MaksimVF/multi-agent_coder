@@ -235,7 +235,7 @@ This document provides a comprehensive overview of the system architecture, incl
 
         # Technology stack section
         doc += "\n## Technology Stack\n"
-        tech_stack = self._select_tech_stack("")
+        tech_stack = await self._select_tech_stack("")
         for category, items in tech_stack.items():
             doc += f"### {category.capitalize()}\n"
             for item, value in items.items():

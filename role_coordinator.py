@@ -3,7 +3,7 @@
 
 
 import asyncio
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Type
 from roles import ProductManager, Architect, Engineer, QaEngineer
 from roles.unified_roles import AnalystArchitect, DeveloperEngineer, TesterQa
 from roles.task_decomposer import TaskDecomposer
@@ -13,6 +13,7 @@ from roles.project_manager import ProjectManager
 from roles.git_integrator import GitIntegrator
 from roles.test_runner import TestRunner
 from roles.agent_monitor import AgentMonitor
+from roles.base_role import BaseRole
 
 class RoleCoordinator:
     """Coordinates the execution of different roles in the development process"""
