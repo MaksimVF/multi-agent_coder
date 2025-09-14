@@ -14,9 +14,16 @@
 import os
 import json
 import asyncio
-from typing import Dict, Any, List
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+import hashlib
+import secrets
+from typing import Dict, Any, List, Optional
+from datetime import datetime, timedelta
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from jose import JWTError, jwt
 from pydantic import BaseModel
+from prometheus_client import Counter, Gauge, generate_latest, CONTENT_TYPE_LATEST
+from starlette.responses import Response
 from role_coordinator import RoleCoordinator
 from roles import ProductManager, Architect, Engineer, QaEngineer
 from roles.unified_roles import AnalystArchitect, DeveloperEngineer, TesterQa
@@ -35,11 +42,36 @@ app = FastAPI()
 import sqlite3
 
 DATABASE_URL = "multi_agent_coder.db"
+SECRET_KEY = "your-secret-key-here"  # Change this in production!
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
+
+# Prometheus metrics
+REQUEST_COUNT = Counter('http_requests_total', 'Total HTTP Requests', ['method', 'endpoint', 'status_code'])
+ACTIVE_USERS = Gauge('active_users', 'Number of active users')
+ACTIVE_PROJECTS = Gauge('active_projects', 'Number of active projects')
+ACTIVE_AGENTS = Gauge('active_agents', 'Number of active agents')
+AGENT_EXECUTION_TIME = Gauge('agent_execution_time_seconds', 'Agent execution time in seconds', ['agent_name'])
 
 def init_db():
     """Initialize database"""
     conn = sqlite3.connect(DATABASE_URL)
     cursor = conn.cursor()
+
+    # Create users table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            email TEXT UNIQUE NOT NULL,
+            hashed_password TEXT NOT NULL,
+            full_name TEXT,
+            is_active BOOLEAN DEFAULT TRUE,
+            is_admin BOOLEAN DEFAULT FALSE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
 
     # Create projects table
     cursor.execute('''
@@ -48,8 +80,10 @@ def init_db():
             name TEXT NOT NULL,
             description TEXT,
             status TEXT DEFAULT 'pending',
+            owner_id INTEGER,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (owner_id) REFERENCES users (id)
         )
     ''')
 
@@ -78,6 +112,33 @@ def init_db():
         )
     ''')
 
+    # Create reports table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS reports (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            agent_id INTEGER,
+            project_id INTEGER,
+            report_type TEXT NOT NULL,
+            data TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (agent_id) REFERENCES agents (id),
+            FOREIGN KEY (project_id) REFERENCES projects (id)
+        )
+    ''')
+
+    # Create system_logs table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS system_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            action TEXT NOT NULL,
+            details TEXT,
+            level TEXT DEFAULT 'info',
+            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+    ''')
+
     conn.commit()
     conn.close()
 
@@ -103,7 +164,160 @@ class WebSocketManager:
 # Initialize WebSocket manager
 ws_manager = WebSocketManager()
 
+# Security utilities
+def hash_password(password: str) -> str:
+    """Hash a password for storing."""
+    salt = secrets.token_hex(16)
+    return f"{salt}${hashlib.sha256(salt.encode() + password.encode()).hexdigest()}"
+
+def verify_password(stored_password: str, provided_password: str) -> bool:
+    """Verify a stored password against one provided by user"""
+    salt, hashed = stored_password.split("$")
+    return hashlib.sha256(salt.encode() + provided_password.encode()).hexdigest() == hashed
+
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+    """Create JWT access token"""
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=15)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+# Logging utilities
+def log_system_action(user_id: Optional[int], action: str, details: str = "", level: str = "info") -> None:
+    """Log system actions"""
+    conn = sqlite3.connect(DATABASE_URL)
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        INSERT INTO system_logs (user_id, action, details, level)
+        VALUES (?, ?, ?, ?)
+    ''', (user_id, action, details, level))
+
+    conn.commit()
+    conn.close()
+
+    # Broadcast system log
+    asyncio.create_task(ws_manager.broadcast(json.dumps({
+        "event": "system_log",
+        "action": action,
+        "details": details,
+        "level": level
+    })))
+
+# Metrics utilities
+def get_active_users() -> List[User]:
+    """Get all active users"""
+    conn = sqlite3.connect(DATABASE_URL)
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT id, username, email, full_name, is_active, is_admin
+        FROM users
+        WHERE is_active = TRUE
+    ''')
+
+    users = []
+    for row in cursor.fetchall():
+        users.append(User(
+            id=row[0],
+            username=row[1],
+            email=row[2],
+            full_name=row[3],
+            is_active=row[4],
+            is_admin=row[5]
+        ))
+
+    conn.close()
+    return users
+
+def get_active_projects() -> List[Dict]:
+    """Get all active projects"""
+    conn = sqlite3.connect(DATABASE_URL)
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT id, name, description, status, owner_id, created_at, updated_at
+        FROM projects
+        WHERE status != 'completed'
+    ''')
+
+    projects = []
+    for row in cursor.fetchall():
+        projects.append({
+            "id": row[0],
+            "name": row[1],
+            "description": row[2],
+            "status": row[3],
+            "owner_id": row[4],
+            "created_at": row[5],
+            "updated_at": row[6]
+        })
+
+    conn.close()
+    return projects
+
+def get_active_agents() -> List[Dict]:
+    """Get all active agents"""
+    conn = sqlite3.connect(DATABASE_URL)
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT id, project_id, name, status, created_at, updated_at
+        FROM agents
+        WHERE status IN ('running', 'pending')
+    ''')
+
+    agents = []
+    for row in cursor.fetchall():
+        agents.append({
+            "id": row[0],
+            "project_id": row[1],
+            "name": row[2],
+            "status": row[3],
+            "created_at": row[4],
+            "updated_at": row[5]
+        })
+
+    conn.close()
+    return agents
+
 # Models
+class UserCreate(BaseModel):
+    username: str
+    email: str
+    password: str
+    full_name: Optional[str] = None
+
+class UserUpdate(BaseModel):
+    username: Optional[str] = None
+    email: Optional[str] = None
+    password: Optional[str] = None
+    full_name: Optional[str] = None
+    is_active: Optional[bool] = None
+    is_admin: Optional[bool] = None
+
+class User(BaseModel):
+    id: int
+    username: str
+    email: str
+    full_name: Optional[str] = None
+    is_active: bool
+    is_admin: bool
+
+    class Config:
+        orm_mode = True
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+class TokenData(BaseModel):
+    username: Optional[str] = None
+
 class ProjectCreate(BaseModel):
     name: str
     description: str
@@ -118,21 +332,220 @@ class AgentStatus(BaseModel):
     status: str
     message: str
 
+class Report(BaseModel):
+    id: int
+    agent_id: int
+    project_id: int
+    report_type: str
+    data: dict
+    created_at: datetime
+
+    class Config:
+        orm_mode = True
+
+class SystemLog(BaseModel):
+    id: int
+    user_id: Optional[int]
+    action: str
+    details: str
+    level: str
+    timestamp: datetime
+
+    class Config:
+        orm_mode = True
+
+# Security dependencies
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
+    """Get current user from JWT token"""
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise credentials_exception
+        token_data = TokenData(username=username)
+    except JWTError:
+        raise credentials_exception
+
+    # Get user from database
+    conn = sqlite3.connect(DATABASE_URL)
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT id, username, email, full_name, is_active, is_admin
+        FROM users
+        WHERE username = ?
+    ''', (token_data.username,))
+
+    user = cursor.fetchone()
+    conn.close()
+
+    if user is None:
+        raise credentials_exception
+
+    return User(
+        id=user[0],
+        username=user[1],
+        email=user[2],
+        full_name=user[3],
+        is_active=user[4],
+        is_admin=user[5]
+    )
+
+def get_current_active_user(current_user: User = Depends(get_current_user)) -> User:
+    """Get current active user"""
+    if not current_user.is_active:
+        raise HTTPException(status_code=400, detail="Inactive user")
+    return current_user
+
+def get_admin_user(current_user: User = Depends(get_current_user)) -> User:
+    """Get current admin user"""
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+    return current_user
+
 # API Endpoints
-@app.post("/projects/")
-async def create_project(project: ProjectCreate):
+@app.post("/token", response_model=Token)
+async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
+    """Login and get access token"""
+    # Get user from database
+    conn = sqlite3.connect(DATABASE_URL)
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT id, username, email, hashed_password, full_name, is_active, is_admin
+        FROM users
+        WHERE username = ?
+    ''', (form_data.username,))
+
+    user = cursor.fetchone()
+    conn.close()
+
+    if not user or not verify_password(user[3], form_data.password):
+        REQUEST_COUNT.labels(method="POST", endpoint="/token", status_code=401).inc()
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": user[1]}, expires_delta=access_token_expires
+    )
+
+    # Log successful login
+    log_system_action(user[0], "user_login", f"User {user[1]} logged in")
+
+    # Update metrics
+    REQUEST_COUNT.labels(method="POST", endpoint="/token", status_code=200).inc()
+    ACTIVE_USERS.set(len(get_active_users()))
+
+    return {"access_token": access_token, "token_type": "bearer"}
+
+# Metrics endpoint
+@app.get("/metrics")
+async def metrics():
+    """Prometheus metrics endpoint"""
+    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
+@app.post("/users/", response_model=User)
+async def create_user(user: UserCreate, current_user: User = Depends(get_admin_user)):
+    """Create a new user (admin only)"""
+    conn = sqlite3.connect(DATABASE_URL)
+    cursor = conn.cursor()
+
+    # Check if user already exists
+    cursor.execute('''
+        SELECT id FROM users WHERE username = ? OR email = ?
+    ''', (user.username, user.email))
+
+    if cursor.fetchone():
+        conn.close()
+        raise HTTPException(status_code=400, detail="User already exists")
+
+    # Create user
+    hashed_password = hash_password(user.password)
+    cursor.execute('''
+        INSERT INTO users (username, email, hashed_password, full_name)
+        VALUES (?, ?, ?, ?)
+    ''', (user.username, user.email, hashed_password, user.full_name))
+
+    user_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+
+    # Log user creation
+    log_system_action(current_user.id, "user_created", f"Admin {current_user.username} created user {user.username}")
+
+    # Get created user
+    created_user = User(
+        id=user_id,
+        username=user.username,
+        email=user.email,
+        full_name=user.full_name,
+        is_active=True,
+        is_admin=False
+    )
+
+    return created_user
+
+@app.get("/users/me/", response_model=User)
+async def read_users_me(current_user: User = Depends(get_current_active_user)):
+    """Get current user info"""
+    return current_user
+
+@app.get("/users/", response_model=List[User])
+async def get_users(current_user: User = Depends(get_admin_user)):
+    """Get all users (admin only)"""
+    conn = sqlite3.connect(DATABASE_URL)
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT id, username, email, full_name, is_active, is_admin
+        FROM users
+    ''')
+
+    users = []
+    for row in cursor.fetchall():
+        users.append(User(
+            id=row[0],
+            username=row[1],
+            email=row[2],
+            full_name=row[3],
+            is_active=row[4],
+            is_admin=row[5]
+        ))
+
+    conn.close()
+    return users
+
+@app.post("/projects/", response_model=dict)
+async def create_project(
+    project: ProjectCreate,
+    current_user: User = Depends(get_current_active_user)
+):
     """Create a new project"""
     conn = sqlite3.connect(DATABASE_URL)
     cursor = conn.cursor()
 
     cursor.execute('''
-        INSERT INTO projects (name, description)
-        VALUES (?, ?)
-    ''', (project.name, project.description))
+        INSERT INTO projects (name, description, owner_id)
+        VALUES (?, ?, ?)
+    ''', (project.name, project.description, current_user.id))
 
     project_id = cursor.lastrowid
     conn.commit()
     conn.close()
+
+    # Log project creation
+    log_system_action(current_user.id, "project_created", f"User {current_user.username} created project {project.name}")
 
     # Broadcast project creation
     await ws_manager.broadcast(json.dumps({
@@ -143,16 +556,18 @@ async def create_project(project: ProjectCreate):
 
     return {"message": "Project created successfully", "project_id": project_id}
 
-@app.get("/projects/")
-async def get_projects():
-    """Get all projects"""
+@app.get("/projects/", response_model=dict)
+async def get_projects(current_user: User = Depends(get_current_active_user)):
+    """Get all projects for current user"""
     conn = sqlite3.connect(DATABASE_URL)
     cursor = conn.cursor()
 
+    # Get projects owned by user or where user is a collaborator
     cursor.execute('''
         SELECT id, name, description, status, created_at, updated_at
         FROM projects
-    ''')
+        WHERE owner_id = ?
+    ''', (current_user.id,))
 
     projects = []
     for row in cursor.fetchall():
@@ -168,15 +583,19 @@ async def get_projects():
     conn.close()
     return {"projects": projects}
 
-@app.post("/projects/{project_id}/agents/")
-async def execute_agent(project_id: int, agent_name: str):
+@app.post("/projects/{project_id}/agents/", response_model=dict)
+async def execute_agent(
+    project_id: int,
+    agent_name: str,
+    current_user: User = Depends(get_current_active_user)
+):
     """Execute an agent for a project"""
     # Get project from database
     conn = sqlite3.connect(DATABASE_URL)
     cursor = conn.cursor()
 
     cursor.execute('''
-        SELECT name, description, status
+        SELECT name, description, status, owner_id
         FROM projects
         WHERE id = ?
     ''', (project_id,))
@@ -184,7 +603,12 @@ async def execute_agent(project_id: int, agent_name: str):
     project = cursor.fetchone()
     if not project:
         conn.close()
-        return {"error": "Project not found"}, 404
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    # Check if user has access to the project
+    if project[3] != current_user.id:
+        conn.close()
+        raise HTTPException(status_code=403, detail="Not authorized to access this project")
 
     # Create agent record
     cursor.execute('''
@@ -195,6 +619,9 @@ async def execute_agent(project_id: int, agent_name: str):
     agent_id = cursor.lastrowid
     conn.commit()
     conn.close()
+
+    # Log agent execution
+    log_system_action(current_user.id, "agent_executed", f"User {current_user.username} executed agent {agent_name} for project {project[0]}")
 
     # Execute agent
     try:
@@ -225,6 +652,18 @@ async def execute_agent(project_id: int, agent_name: str):
             WHERE id = ?
         ''', ("completed", agent_id))
 
+        # Save report
+        report_data = {
+            "status": "success",
+            "result": result,
+            "agent_name": agent_name,
+            "project_name": project[0]
+        }
+        cursor.execute('''
+            INSERT INTO reports (agent_id, project_id, report_type, data)
+            VALUES (?, ?, ?, ?)
+        ''', (agent_id, project_id, "execution_report", json.dumps(report_data)))
+
         conn.commit()
         conn.close()
 
@@ -249,8 +688,23 @@ async def execute_agent(project_id: int, agent_name: str):
             WHERE id = ?
         ''', ("failed", agent_id))
 
+        # Save error report
+        error_report = {
+            "status": "error",
+            "error": str(e),
+            "agent_name": agent_name,
+            "project_name": project[0]
+        }
+        cursor.execute('''
+            INSERT INTO reports (agent_id, project_id, report_type, data)
+            VALUES (?, ?, ?, ?)
+        ''', (agent_id, project_id, "error_report", json.dumps(error_report)))
+
         conn.commit()
         conn.close()
+
+        # Log agent failure
+        log_system_action(current_user.id, "agent_failed", f"Agent {agent_name} failed for project {project[0]}: {str(e)}")
 
         # Broadcast agent failure
         await ws_manager.broadcast(json.dumps({
@@ -260,13 +714,26 @@ async def execute_agent(project_id: int, agent_name: str):
             "error": str(e)
         }))
 
-        return {"error": str(e)}, 500
+        raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/projects/{project_id}/agents/")
-async def get_project_agents(project_id: int):
+@app.get("/projects/{project_id}/agents/", response_model=dict)
+async def get_project_agents(
+    project_id: int,
+    current_user: User = Depends(get_current_active_user)
+):
     """Get agents for a project"""
     conn = sqlite3.connect(DATABASE_URL)
     cursor = conn.cursor()
+
+    # Check if user has access to the project
+    cursor.execute('''
+        SELECT owner_id FROM projects WHERE id = ?
+    ''', (project_id,))
+
+    project = cursor.fetchone()
+    if not project or project[0] != current_user.id:
+        conn.close()
+        raise HTTPException(status_code=403, detail="Not authorized to access this project")
 
     cursor.execute('''
         SELECT id, name, status, created_at, updated_at
@@ -287,11 +754,27 @@ async def get_project_agents(project_id: int):
     conn.close()
     return {"agents": agents}
 
-@app.get("/agents/{agent_id}/logs/")
-async def get_agent_logs(agent_id: int):
+@app.get("/agents/{agent_id}/logs/", response_model=dict)
+async def get_agent_logs(
+    agent_id: int,
+    current_user: User = Depends(get_current_active_user)
+):
     """Get logs for an agent"""
     conn = sqlite3.connect(DATABASE_URL)
     cursor = conn.cursor()
+
+    # Check if user has access to the agent
+    cursor.execute('''
+        SELECT p.owner_id
+        FROM agents a
+        JOIN projects p ON a.project_id = p.id
+        WHERE a.id = ?
+    ''', (agent_id,))
+
+    owner = cursor.fetchone()
+    if not owner or owner[0] != current_user.id:
+        conn.close()
+        raise HTTPException(status_code=403, detail="Not authorized to access this agent")
 
     cursor.execute('''
         SELECT message, level, timestamp
@@ -306,6 +789,104 @@ async def get_agent_logs(agent_id: int):
             "message": row[0],
             "level": row[1],
             "timestamp": row[2]
+        })
+
+    conn.close()
+    return {"logs": logs}
+
+@app.get("/agents/{agent_id}/reports/", response_model=dict)
+async def get_agent_reports(
+    agent_id: int,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get reports for an agent"""
+    conn = sqlite3.connect(DATABASE_URL)
+    cursor = conn.cursor()
+
+    # Check if user has access to the agent
+    cursor.execute('''
+        SELECT p.owner_id
+        FROM agents a
+        JOIN projects p ON a.project_id = p.id
+        WHERE a.id = ?
+    ''', (agent_id,))
+
+    owner = cursor.fetchone()
+    if not owner or owner[0] != current_user.id:
+        conn.close()
+        raise HTTPException(status_code=403, detail="Not authorized to access this agent")
+
+    cursor.execute('''
+        SELECT id, report_type, data, created_at
+        FROM reports
+        WHERE agent_id = ?
+        ORDER BY created_at DESC
+    ''', (agent_id,))
+
+    reports = []
+    for row in cursor.fetchall():
+        reports.append({
+            "id": row[0],
+            "report_type": row[1],
+            "data": json.loads(row[2]),
+            "created_at": row[3]
+        })
+
+    conn.close()
+    return {"reports": reports}
+
+@app.get("/admin/reports/", response_model=dict)
+async def get_all_reports(current_user: User = Depends(get_admin_user)):
+    """Get all reports (admin only)"""
+    conn = sqlite3.connect(DATABASE_URL)
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT r.id, r.agent_id, r.project_id, r.report_type, r.data, r.created_at,
+               a.name as agent_name, p.name as project_name
+        FROM reports r
+        JOIN agents a ON r.agent_id = a.id
+        JOIN projects p ON r.project_id = p.id
+        ORDER BY r.created_at DESC
+    ''')
+
+    reports = []
+    for row in cursor.fetchall():
+        reports.append({
+            "id": row[0],
+            "agent_id": row[1],
+            "project_id": row[2],
+            "report_type": row[3],
+            "data": json.loads(row[4]),
+            "created_at": row[5],
+            "agent_name": row[6],
+            "project_name": row[7]
+        })
+
+    conn.close()
+    return {"reports": reports}
+
+@app.get("/admin/logs/", response_model=dict)
+async def get_system_logs(current_user: User = Depends(get_admin_user)):
+    """Get system logs (admin only)"""
+    conn = sqlite3.connect(DATABASE_URL)
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        SELECT id, user_id, action, details, level, timestamp
+        FROM system_logs
+        ORDER BY timestamp DESC
+    ''')
+
+    logs = []
+    for row in cursor.fetchall():
+        logs.append({
+            "id": row[0],
+            "user_id": row[1],
+            "action": row[2],
+            "details": row[3],
+            "level": row[4],
+            "timestamp": row[5]
         })
 
     conn.close()
