@@ -3,7 +3,7 @@
 
 # Multi-Agent Coder
 
-**Advanced AI-Powered Code Generation System**
+**Advanced AI-Powered Code Generation System with Enhanced Architecture**
 
 ## Overview
 
@@ -39,20 +39,20 @@ Multi-Agent Coder is a sophisticated AI-driven system that leverages multiple in
    - Documentation generation
    - Best practice research
 
-### Advanced Capabilities
+### Enhanced Architecture
 
-- **LLM Integration**: All agents leverage language models for intelligent decision making
-- **LangGraph Workflow**: Coordinated agent collaboration using graph-based workflows
-- **Mock Mode**: Graceful fallback when no API key is available
-- **CI/CD Integration**: Automated testing and deployment pipeline
+- **Agent Registry**: Dynamic agent registration and discovery
+- **Event System**: Decoupled event-driven communication
+- **Advanced Code Generation**: Iterative refinement and validation
+- **Memory Management**: Short-term and long-term memory integration
 
-## Architecture
+## New Architecture
 
 ```
-[User Task] → [Analyst] → [Developer] → [Tester] → [Optimizer] → [Final Code]
-               ↑            ↑            ↑            ↑
-              ML           LLM          LLM          LLM
-            Analysis      Code Gen     Testing      Optimization
+[User Task] → [Agent Registry] → [Event Bus] → [Enhanced Workflow] → [Final Code]
+               ↑                  ↑                  ↑                  ↑
+            [Dynamic]         [Decoupled]        [Advanced]         [Memory]
+           Discovery          Events            Code Gen          Integration
 ```
 
 ## Installation
@@ -78,48 +78,72 @@ export LITELLM_API_KEY='your-api-key'
 python main.py "Create a Python function to calculate factorial"
 ```
 
-### Advanced Usage
+### Advanced Usage with New Features
 
 ```python
+from agent_registry import AgentRegistry
+from event_system import EventBus, EventType
+from advanced_code_generator import AdvancedCodeGenerator
 from analyst import Analyst
 from developer import Developer
 from tester import Tester
 from optimizer import Optimizer
 import asyncio
 
-async def main():
+async def enhanced_workflow():
+    # Initialize event bus
+    event_bus = EventBus()
+
+    # Register agents
+    AgentRegistry.register("analyst", Analyst, version="2.0")
+    AgentRegistry.register("developer", Developer, version="2.0")
+    AgentRegistry.register("tester", Tester, version="2.0")
+    AgentRegistry.register("optimizer", Optimizer, version="2.0")
+
     # Initialize agents
     analyst = Analyst(temperature=0.5)
     developer = Developer(temperature=0.7)
     tester = Tester(temperature=0.3)
     optimizer = Optimizer(temperature=0.5)
 
+    # Use advanced code generator
+    code_generator = AdvancedCodeGenerator()
+
     # Analyze task
     task = "Create a Python function to calculate factorial"
     subtasks = await analyst.analyze_task(task)
 
-    # Develop code
+    # Generate code with advanced generator
     code_artifacts = []
     for subtask in subtasks:
-        code = await developer.develop_code(subtask, "python")
+        code = await code_generator.generate_code(
+            requirements=subtask,
+            language="python"
+        )
         code_artifacts.append(code)
 
-    # Test code
+    # Generate tests
     test_results = []
     for code in code_artifacts:
-        tests = await tester.generate_tests(code)
+        tests = await code_generator.generate_unit_tests(
+            code=code["code"],
+            requirements=code["metadata"]["requirements"]
+        )
         test_results.append(tests)
 
     # Optimize code
     optimized_code = []
     for code in code_artifacts:
-        optimized = await optimizer.optimize_code(code)
+        optimized = await code_generator.optimize_code(
+            code=code["code"],
+            requirements=code["metadata"]["requirements"]
+        )
         optimized_code.append(optimized)
 
     return optimized_code
 
-# Run the workflow
-result = asyncio.run(main())
+# Run the enhanced workflow
+result = asyncio.run(enhanced_workflow())
 ```
 
 ## Testing
@@ -168,7 +192,10 @@ This project is licensed under the MIT License.
 - [x] LangGraph workflow coordination
 - [x] Advanced task analysis with ML
 - [x] CI/CD pipeline integration
-- [ ] Enhanced error handling and recovery
+- [x] **Enhanced error handling and recovery**
+- [x] **Dynamic agent registration**
+- [x] **Event-driven architecture**
+- [x] **Advanced code generation**
 - [ ] Multi-language support
 - [ ] Performance benchmarking
 - [ ] Cloud deployment templates

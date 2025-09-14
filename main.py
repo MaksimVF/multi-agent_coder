@@ -18,13 +18,16 @@ try:
     from researcher import Researcher
     from agent_workflow import AgentWorkflow
     from memory_manager import MemoryManager
+    from agent_registry import AgentRegistry
+    from event_system import EventBus, EventType
+    from advanced_code_generator import AdvancedCodeGenerator
 except ImportError as e:
     print(f"Error importing agent modules: {e}")
     raise
 
 async def main():
-    """Main function to run the multi-agent coder system with memory integration."""
-    print("🚀 Starting Multi-Agent Coder System with Memory Integration...")
+    """Main function to run the enhanced multi-agent coder system."""
+    print("🚀 Starting Enhanced Multi-Agent Coder System...")
 
     # Initialize memory manager
     memory_manager = MemoryManager(
@@ -39,6 +42,17 @@ async def main():
     tester = Tester(memory_manager=memory_manager)
     optimizer = Optimizer(memory_manager=memory_manager)
     researcher = Researcher(memory_manager=memory_manager)
+
+    # Register agents with the registry
+    AgentRegistry.register("analyst", Analyst, version="2.0", description="Task analysis agent")
+    AgentRegistry.register("developer", Developer, version="2.0", description="Code development agent")
+    AgentRegistry.register("tester", Tester, version="2.0", description="Code testing agent")
+    AgentRegistry.register("optimizer", Optimizer, version="2.0", description="Code optimization agent")
+    AgentRegistry.register("researcher", Researcher, version="2.0", description="Research agent")
+
+    print("📋 Registered Agents:")
+    for name, info in AgentRegistry.list_agents().items():
+        print(f"  - {name}: {info.get('description', 'No description')} v{info.get('version', '1.0')}")
 
     # Initialize workflow with memory manager
     workflow = AgentWorkflow(memory_manager=memory_manager)
