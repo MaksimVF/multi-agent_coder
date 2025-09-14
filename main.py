@@ -308,6 +308,32 @@ async def main():
     print(f"  - Error logs: {len(test_runner_result.get('error_logs', {}).get('error_logs', []))}")
     print(f"  - Git status: {test_runner_result.get('git_status', {}).get('status', 'unknown')}")
 
+    # Demonstrate workflow with AgentMonitor
+    print("\n🔍 Demonstrating Workflow with AgentMonitor:")
+    print("  - Using AgentMonitor for error handling and agent recovery")
+
+    # Create and run role coordinator with AgentMonitor
+    agent_monitor_coordinator = RoleCoordinator(
+        use_unified_roles=True,
+        use_task_decomposer=True,
+        use_reviewer=True,
+        use_full_workflow=True,
+        use_test_runner=True,
+        use_agent_monitor=True
+    )
+
+    # Run the workflow with AgentMonitor
+    print("  - Running workflow with AgentMonitor...")
+    agent_monitor_result = await agent_monitor_coordinator.run_workflow(project_requirements)
+
+    # Show results
+    print("  - AgentMonitor workflow completed!")
+    print(f"  - Agent status: {len(agent_monitor_result.get('agent_status', {}))} agents monitored")
+    print(f"  - Error log: {len(agent_monitor_result.get('error_log', []))} errors logged")
+    print(f"  - Monitoring status: {agent_monitor_result.get('monitoring_status', 'unknown')}")
+    print(f"  - Test results: {agent_monitor_result.get('test_results', {}).get('status', 'unknown')}")
+    print(f"  - Git status: {agent_monitor_result.get('git_status', {}).get('status', 'unknown')}")
+
 if __name__ == "__main__":
     asyncio.run(main())
 
