@@ -1,0 +1,26 @@
+
+{
+  "welcome": "Welcome to Multi-Agent Coder",
+  "description": "A platform for collaborative coding with AI agents",
+  "language": "Language",
+  "settings": "Settings",
+  "dashboard": "Dashboard",
+  "projects": "Projects",
+  "agents": "Agents",
+  "tasks": "Tasks",
+  "profile": "Profile",
+  "logout": "Logout",
+  "search": "Search...",
+  "createProject": "Create Project",
+  "projectName": "Project Name",
+  "projectDescription": "Project Description",
+  "save": "Save",
+  "cancel": "Cancel",
+  "error": "Error",
+  "success": "Success",
+  "loading": "Loading...",
+  "noResults": "No results found",
+  "dateFormat": "MM/DD/YYYY",
+  "timeFormat": "hh:mm A",
+  "currency": "USD"
+}

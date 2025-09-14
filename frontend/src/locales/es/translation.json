@@ -1,0 +1,30 @@
+
+
+
+{
+  "welcome": "Bienvenido a Multi-Agent Coder",
+  "description": "Una plataforma para la codificación colaborativa con agentes de IA",
+  "language": "Idioma",
+  "settings": "Configuración",
+  "dashboard": "Tablero",
+  "projects": "Proyectos",
+  "agents": "Agentes",
+  "tasks": "Tareas",
+  "profile": "Perfil",
+  "logout": "Cerrar sesión",
+  "search": "Buscar...",
+  "createProject": "Crear Proyecto",
+  "projectName": "Nombre del Proyecto",
+  "projectDescription": "Descripción del Proyecto",
+  "save": "Guardar",
+  "cancel": "Cancelar",
+  "error": "Error",
+  "success": "Éxito",
+  "loading": "Cargando...",
+  "noResults": "No se encontraron resultados",
+  "dateFormat": "DD/MM/YYYY",
+  "timeFormat": "HH:mm",
+  "currency": "EUR"
+}
+
+

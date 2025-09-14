@@ -1,0 +1,28 @@
+
+
+{
+  "welcome": "Добро пожаловать в Multi-Agent Coder",
+  "description": "Платформа для совместного программирования с AI агентами",
+  "language": "Язык",
+  "settings": "Настройки",
+  "dashboard": "Панель управления",
+  "projects": "Проекты",
+  "agents": "Агенты",
+  "tasks": "Задачи",
+  "profile": "Профиль",
+  "logout": "Выйти",
+  "search": "Поиск...",
+  "createProject": "Создать проект",
+  "projectName": "Название проекта",
+  "projectDescription": "Описание проекта",
+  "save": "Сохранить",
+  "cancel": "Отмена",
+  "error": "Ошибка",
+  "success": "Успех",
+  "loading": "Загрузка...",
+  "noResults": "Ничего не найдено",
+  "dateFormat": "DD.MM.YYYY",
+  "timeFormat": "HH:mm",
+  "currency": "RUB"
+}
+
