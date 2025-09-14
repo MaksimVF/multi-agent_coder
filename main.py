@@ -228,6 +228,30 @@ async def main():
     print(f"  - Implemented components: {len(decomposer_result.get('code_implementation', {}))}")
     print(f"  - Test status: {decomposer_result.get('qa_status', 'unknown')}")
 
+    # Demonstrate code review
+    print("\n🔍 Demonstrating Code Review (MetaGPT-inspired):")
+    print("  - Using Reviewer agent to perform systematic code review")
+
+    # Create and run role coordinator with reviewer
+    reviewer_coordinator = RoleCoordinator(
+        use_unified_roles=True,
+        use_task_decomposer=True,
+        use_reviewer=True
+    )
+
+    # Run the workflow with code review
+    print("  - Running workflow with code review...")
+    reviewer_result = await reviewer_coordinator.run_workflow(project_requirements)
+
+    # Show results
+    print("  - Code review workflow completed successfully!")
+    print(f"  - Generated architecture: {reviewer_result.get('system_architecture', {}).get('components', [])}")
+    print(f"  - Task list: {len(reviewer_result.get('task_list', []))} tasks")
+    print(f"  - Code review score: {reviewer_result.get('code_review', {}).get('quality_score', 0):.1f}/10")
+    print(f"  - Issues found: {reviewer_result.get('code_review', {}).get('issues_found', 0)}")
+    print(f"  - Review documentation:\n{reviewer_result.get('review_documentation', 'No documentation')}")
+    print(f"  - Test status: {reviewer_result.get('qa_status', 'unknown')}")
+
 if __name__ == "__main__":
     asyncio.run(main())
 
