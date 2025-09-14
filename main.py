@@ -23,6 +23,7 @@ try:
     from advanced_code_generator import AdvancedCodeGenerator
     from problem_solver import ProblemSolver, ProblemContext
     from role_coordinator import RoleCoordinator
+    from roles.librarian import LibrarianAgent
 except ImportError as e:
     print(f"Error importing agent modules: {e}")
     raise
@@ -44,6 +45,7 @@ async def main():
     tester = Tester(memory_manager=memory_manager)
     optimizer = Optimizer(memory_manager=memory_manager)
     researcher = Researcher(memory_manager=memory_manager)
+    librarian = LibrarianAgent(memory_manager=memory_manager)
 
     # Register agents with the registry
     AgentRegistry.register("analyst", Analyst, version="2.0", description="Task analysis agent")
@@ -51,6 +53,7 @@ async def main():
     AgentRegistry.register("tester", Tester, version="2.0", description="Code testing agent")
     AgentRegistry.register("optimizer", Optimizer, version="2.0", description="Code optimization agent")
     AgentRegistry.register("researcher", Researcher, version="2.0", description="Research agent")
+    AgentRegistry.register("librarian", LibrarianAgent, version="1.0", description="Knowledge management agent")
 
     print("📋 Registered Agents:")
     for name, info in AgentRegistry.list_agents().items():
@@ -65,6 +68,7 @@ async def main():
     workflow.add_agent("tester", tester)
     workflow.add_agent("optimizer", optimizer)
     workflow.add_agent("researcher", researcher)
+    workflow.add_agent("librarian", librarian)
 
     # Demonstrate enhanced event system capabilities
     print("\n📡 Enhanced Event System Features:")
@@ -121,6 +125,46 @@ async def main():
     ]
     kb_result = await researcher.populate_knowledge_base(research_topics)
     print(f"Knowledge base populated with {len(research_topics)} topics")
+
+    # Demonstrate Librarian Agent functionality
+    print("\n📚 Demonstrating Librarian Agent Knowledge Search:")
+    print("  - Searching for relevant knowledge about Fibonacci algorithms")
+
+    # Use librarian to search for knowledge
+    search_results = await librarian.search_knowledge(
+        query="Fibonacci sequence algorithms with memoization",
+        task_id=sample_task["id"],
+        agent="researcher"
+    )
+
+    print(f"  - Found {len(search_results)} relevant knowledge items:")
+    for i, result in enumerate(search_results[:3]):  # Show top 3 results
+        print(f"    {i+1}. Relevance: {result['relevance']:.2f}")
+        print(f"       Source: {result['source']}")
+        print(f"       Content: {result['content'][:100]}...")
+        print(f"       Metadata: {result['metadata']}")
+
+    # Demonstrate context analysis
+    print("\n🔍 Demonstrating Librarian Agent Context Analysis:")
+    context_analysis = await librarian.analyze_context({
+        "microagent_knowledge": [
+            {
+                "name": "python_microagent",
+                "trigger": "Fibonacci",
+                "content": "Fibonacci sequence is a series where each number is the sum of the two preceding ones."
+            }
+        ],
+        "repo_instructions": [
+            {
+                "name": "coding_standards",
+                "content": "All code must follow PEP 8 standards and include type hints."
+            }
+        ]
+    })
+
+    print(f"  - Generated {len(context_analysis['insights'])} insights:")
+    for insight in context_analysis['insights']:
+        print(f"    - {insight['type']}: {insight['analysis']}")
 
     # Close memory manager
     memory_manager.close()
