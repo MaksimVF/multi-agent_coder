@@ -22,6 +22,7 @@ try:
     from event_system import EventBus, EventType
     from advanced_code_generator import AdvancedCodeGenerator
     from problem_solver import ProblemSolver, ProblemContext
+    from role_coordinator import RoleCoordinator
 except ImportError as e:
     print(f"Error importing agent modules: {e}")
     raise
@@ -164,6 +165,49 @@ async def main():
     print(f"  - Problem solved: {solver_result.get('success', False)}")
     print(f"  - Iterations: {solver_result.get('iterations', 0)}")
     print(f"  - Agents used: {', '.join(solver_result.get('agents_used', []))}")
+
+    # Demonstrate new Role Coordinator with enhanced roles
+    print("\n🎯 Demonstrating New Role Coordinator with Enhanced Roles:")
+    print("  - Using Product Manager, Architect, Engineer, and QA Engineer roles")
+    print("  - Creating project skeleton and implementing core components")
+
+    # Create and run role coordinator with original roles
+    role_coordinator = RoleCoordinator(use_unified_roles=False)
+
+    # Example project requirements
+    project_requirements = {
+        "requirements": "Create a web application with frontend, backend, and database. "
+                       "Include user authentication and REST API endpoints."
+    }
+
+    # Run the enhanced workflow with original roles
+    print("  - Running enhanced development workflow with original roles...")
+    coordinator_result = await role_coordinator.run_workflow(project_requirements)
+
+    # Show results
+    print("  - Workflow completed successfully!")
+    print(f"  - Generated architecture: {coordinator_result.get('system_architecture', {}).get('components', [])}")
+    print(f"  - Created files: {len(coordinator_result.get('project_structure', {}))} directories")
+    print(f"  - Implemented components: {len(coordinator_result.get('code_implementation', {}))}")
+    print(f"  - Test status: {coordinator_result.get('qa_status', 'unknown')}")
+
+    # Demonstrate unified roles
+    print("\n🎯 Demonstrating Unified Roles (Reduced Redundancy):")
+    print("  - Using AnalystArchitect, DeveloperEngineer, and TesterQa roles")
+
+    # Create and run role coordinator with unified roles
+    unified_coordinator = RoleCoordinator(use_unified_roles=True)
+
+    # Run the workflow with unified roles
+    print("  - Running workflow with unified roles...")
+    unified_result = await unified_coordinator.run_workflow(project_requirements)
+
+    # Show results
+    print("  - Unified workflow completed successfully!")
+    print(f"  - Generated architecture: {unified_result.get('system_architecture', {}).get('components', [])}")
+    print(f"  - Created files: {len(unified_result.get('project_structure', {}))} directories")
+    print(f"  - Implemented components: {len(unified_result.get('code_implementation', {}))}")
+    print(f"  - Test status: {unified_result.get('qa_status', 'unknown')}")
 
 if __name__ == "__main__":
     asyncio.run(main())
