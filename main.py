@@ -228,6 +228,86 @@ async def main():
     print(f"  - Implemented components: {len(decomposer_result.get('code_implementation', {}))}")
     print(f"  - Test status: {decomposer_result.get('qa_status', 'unknown')}")
 
+    # Demonstrate code review
+    print("\n🔍 Demonstrating Code Review (MetaGPT-inspired):")
+    print("  - Using Reviewer agent to perform systematic code review")
+
+    # Create and run role coordinator with reviewer
+    reviewer_coordinator = RoleCoordinator(
+        use_unified_roles=True,
+        use_task_decomposer=True,
+        use_reviewer=True
+    )
+
+    # Run the workflow with code review
+    print("  - Running workflow with code review...")
+    reviewer_result = await reviewer_coordinator.run_workflow(project_requirements)
+
+    # Show results
+    print("  - Code review workflow completed successfully!")
+    print(f"  - Generated architecture: {reviewer_result.get('system_architecture', {}).get('components', [])}")
+    print(f"  - Task list: {len(reviewer_result.get('task_list', []))} tasks")
+    print(f"  - Code review score: {reviewer_result.get('code_review', {}).get('quality_score', 0):.1f}/10")
+    print(f"  - Issues found: {reviewer_result.get('code_review', {}).get('issues_found', 0)}")
+    print(f"  - Review documentation:\n{reviewer_result.get('review_documentation', 'No documentation')}")
+    print(f"  - Test status: {reviewer_result.get('qa_status', 'unknown')}")
+
+    # Demonstrate full workflow
+    print("\n🚀 Demonstrating Full Workflow (MetaGPT-inspired):")
+    print("  - Using all roles including Project Manager, Documentation Specialist, and Git Integrator")
+
+    # Create and run role coordinator with full workflow
+    full_coordinator = RoleCoordinator(
+        use_unified_roles=True,
+        use_task_decomposer=True,
+        use_reviewer=True,
+        use_full_workflow=True
+    )
+
+    # Run the full workflow
+    print("  - Running full workflow...")
+    full_result = await full_coordinator.run_workflow(project_requirements)
+
+    # Show results
+    print("  - Full workflow completed successfully!")
+    print(f"  - Project plan: {full_result.get('project_plan', {}).get('project_name', 'No project name')}")
+    print(f"  - Sprints planned: {full_result.get('sprint_plan', {}).get('total_sprints', 0)}")
+    print(f"  - Progress: {full_result.get('progress_report', {}).get('progress_percentage', 0):.1f}%")
+    print(f"  - Generated architecture: {len(full_result.get('system_architecture', {}).get('components', {}))} components")
+    print(f"  - Task list: {len(full_result.get('task_list', []))} tasks")
+    print(f"  - Code review score: {full_result.get('code_review', {}).get('quality_score', 0):.1f}/10")
+    print(f"  - Documentation files: {len(full_result.get('documentation_files', {}))}")
+    print(f"  - Git status: {full_result.get('git_status', {}).get('status', 'unknown')}")
+    print(f"  - Test status: {full_result.get('qa_status', 'unknown')}")
+
+    # Demonstrate workflow with TestRunner
+    print("\n🧪 Demonstrating Workflow with TestRunner (Devika-inspired):")
+    print("  - Using TestRunner for automated testing and error fixing")
+
+    # Create and run role coordinator with TestRunner
+    test_runner_coordinator = RoleCoordinator(
+        use_unified_roles=True,
+        use_task_decomposer=True,
+        use_reviewer=True,
+        use_full_workflow=True,
+        use_test_runner=True
+    )
+
+    # Run the workflow with TestRunner
+    print("  - Running workflow with TestRunner...")
+    test_runner_result = await test_runner_coordinator.run_workflow(project_requirements)
+
+    # Show results
+    print("  - TestRunner workflow completed!")
+    print(f"  - Test results: {test_runner_result.get('test_results', {}).get('status', 'unknown')}")
+    print(f"  - Tests run: {test_runner_result.get('test_results', {}).get('tests_run', 0)}")
+    print(f"  - Tests passed: {test_runner_result.get('test_results', {}).get('tests_passed', 0)}")
+    print(f"  - Tests failed: {test_runner_result.get('test_results', {}).get('tests_failed', 0)}")
+    print(f"  - Coverage: {test_runner_result.get('test_results', {}).get('coverage', 0):.1f}%")
+    print(f"  - Fix attempts: {test_runner_result.get('fix_attempts', 0)}")
+    print(f"  - Error logs: {len(test_runner_result.get('error_logs', {}).get('error_logs', []))}")
+    print(f"  - Git status: {test_runner_result.get('git_status', {}).get('status', 'unknown')}")
+
 if __name__ == "__main__":
     asyncio.run(main())
 

@@ -7,65 +7,211 @@ from typing import Dict, Any, List
 from roles import ProductManager, Architect, Engineer, QaEngineer
 from roles.unified_roles import AnalystArchitect, DeveloperEngineer, TesterQa
 from roles.task_decomposer import TaskDecomposer
+from roles.reviewer import Reviewer
+from roles.documentation_specialist import DocumentationSpecialist
+from roles.project_manager import ProjectManager
+from roles.git_integrator import GitIntegrator
+from roles.test_runner import TestRunner
 
 class RoleCoordinator:
     """Coordinates the execution of different roles in the development process"""
 
-    def __init__(self, use_unified_roles: bool = False, use_task_decomposer: bool = False):
-        if use_unified_roles:
-            if use_task_decomposer:
+    def __init__(self, use_unified_roles: bool = False, use_task_decomposer: bool = False, use_reviewer: bool = False, use_full_workflow: bool = False, use_test_runner: bool = False):
+        if use_full_workflow:
+            # Full workflow with all roles
+            if use_unified_roles:
                 self.roles = {
+                    "ProjectManager": ProjectManager(),
                     "AnalystArchitect": AnalystArchitect(),
                     "TaskDecomposer": TaskDecomposer(),
                     "DeveloperEngineer": DeveloperEngineer(),
-                    "TesterQa": TesterQa()
+                    "Reviewer": Reviewer(),
+                    "TestRunner": TestRunner(),
+                    "TesterQa": TesterQa(),
+                    "DocumentationSpecialist": DocumentationSpecialist(),
+                    "GitIntegrator": GitIntegrator()
                 }
-                self.workflow = [
-                    "AnalystArchitect",
-                    "TaskDecomposer",
-                    "DeveloperEngineer",
-                    "TesterQa"
-                ]
+                if use_test_runner:
+                    self.workflow = [
+                        "ProjectManager",
+                        "AnalystArchitect",
+                        "TaskDecomposer",
+                        "DeveloperEngineer",
+                        "Reviewer",
+                        "TestRunner",
+                        "TesterQa",
+                        "DocumentationSpecialist",
+                        "GitIntegrator"
+                    ]
+                else:
+                    self.workflow = [
+                        "ProjectManager",
+                        "AnalystArchitect",
+                        "TaskDecomposer",
+                        "DeveloperEngineer",
+                        "Reviewer",
+                        "TesterQa",
+                        "DocumentationSpecialist",
+                        "GitIntegrator"
+                    ]
             else:
                 self.roles = {
-                    "AnalystArchitect": AnalystArchitect(),
-                    "DeveloperEngineer": DeveloperEngineer(),
-                    "TesterQa": TesterQa()
+                    "ProjectManager": ProjectManager(),
+                    "ProductManager": ProductManager(),
+                    "Architect": Architect(),
+                    "TaskDecomposer": TaskDecomposer(),
+                    "Engineer": Engineer(),
+                    "Reviewer": Reviewer(),
+                    "TestRunner": TestRunner(),
+                    "QaEngineer": QaEngineer(),
+                    "DocumentationSpecialist": DocumentationSpecialist(),
+                    "GitIntegrator": GitIntegrator()
                 }
-                self.workflow = [
-                    "AnalystArchitect",
-                    "DeveloperEngineer",
-                    "TesterQa"
-                ]
+                if use_test_runner:
+                    self.workflow = [
+                        "ProjectManager",
+                        "ProductManager",
+                        "Architect",
+                        "TaskDecomposer",
+                        "Engineer",
+                        "Reviewer",
+                        "TestRunner",
+                        "QaEngineer",
+                        "DocumentationSpecialist",
+                        "GitIntegrator"
+                    ]
+                else:
+                    self.workflow = [
+                        "ProjectManager",
+                        "ProductManager",
+                        "Architect",
+                        "TaskDecomposer",
+                        "Engineer",
+                        "Reviewer",
+                        "QaEngineer",
+                        "DocumentationSpecialist",
+                        "GitIntegrator"
+                    ]
         else:
-            if use_task_decomposer:
-                self.roles = {
-                    "ProductManager": ProductManager(),
-                    "Architect": Architect(),
-                    "TaskDecomposer": TaskDecomposer(),
-                    "Engineer": Engineer(),
-                    "QaEngineer": QaEngineer()
-                }
-                self.workflow = [
-                    "ProductManager",
-                    "Architect",
-                    "TaskDecomposer",
-                    "Engineer",
-                    "QaEngineer"
-                ]
+            # Standard workflow
+            if use_unified_roles:
+                if use_task_decomposer:
+                    if use_reviewer:
+                        self.roles = {
+                            "AnalystArchitect": AnalystArchitect(),
+                            "TaskDecomposer": TaskDecomposer(),
+                            "DeveloperEngineer": DeveloperEngineer(),
+                            "Reviewer": Reviewer(),
+                            "TesterQa": TesterQa()
+                        }
+                        self.workflow = [
+                            "AnalystArchitect",
+                            "TaskDecomposer",
+                            "DeveloperEngineer",
+                            "Reviewer",
+                            "TesterQa"
+                        ]
+                    else:
+                        self.roles = {
+                            "AnalystArchitect": AnalystArchitect(),
+                            "TaskDecomposer": TaskDecomposer(),
+                            "DeveloperEngineer": DeveloperEngineer(),
+                            "TesterQa": TesterQa()
+                        }
+                        self.workflow = [
+                            "AnalystArchitect",
+                            "TaskDecomposer",
+                            "DeveloperEngineer",
+                            "TesterQa"
+                        ]
+                else:
+                    if use_reviewer:
+                        self.roles = {
+                            "AnalystArchitect": AnalystArchitect(),
+                            "DeveloperEngineer": DeveloperEngineer(),
+                            "Reviewer": Reviewer(),
+                            "TesterQa": TesterQa()
+                        }
+                        self.workflow = [
+                            "AnalystArchitect",
+                            "DeveloperEngineer",
+                            "Reviewer",
+                            "TesterQa"
+                        ]
+                    else:
+                        self.roles = {
+                            "AnalystArchitect": AnalystArchitect(),
+                            "DeveloperEngineer": DeveloperEngineer(),
+                            "TesterQa": TesterQa()
+                        }
+                        self.workflow = [
+                            "AnalystArchitect",
+                            "DeveloperEngineer",
+                            "TesterQa"
+                        ]
             else:
-                self.roles = {
-                    "ProductManager": ProductManager(),
-                    "Architect": Architect(),
-                    "Engineer": Engineer(),
-                    "QaEngineer": QaEngineer()
-                }
-                self.workflow = [
-                    "ProductManager",
-                    "Architect",
-                    "Engineer",
-                    "QaEngineer"
-                ]
+                if use_task_decomposer:
+                    if use_reviewer:
+                        self.roles = {
+                            "ProductManager": ProductManager(),
+                            "Architect": Architect(),
+                            "TaskDecomposer": TaskDecomposer(),
+                            "Engineer": Engineer(),
+                            "Reviewer": Reviewer(),
+                            "QaEngineer": QaEngineer()
+                        }
+                        self.workflow = [
+                            "ProductManager",
+                            "Architect",
+                            "TaskDecomposer",
+                            "Engineer",
+                            "Reviewer",
+                            "QaEngineer"
+                        ]
+                    else:
+                        self.roles = {
+                            "ProductManager": ProductManager(),
+                            "Architect": Architect(),
+                            "TaskDecomposer": TaskDecomposer(),
+                            "Engineer": Engineer(),
+                            "QaEngineer": QaEngineer()
+                        }
+                        self.workflow = [
+                            "ProductManager",
+                            "Architect",
+                            "TaskDecomposer",
+                            "Engineer",
+                            "QaEngineer"
+                        ]
+                else:
+                    if use_reviewer:
+                        self.roles = {
+                            "ProductManager": ProductManager(),
+                            "Architect": Architect(),
+                            "Engineer": Engineer(),
+                            "Reviewer": Reviewer(),
+                            "QaEngineer": QaEngineer()
+                        }
+                        self.workflow = [
+                            "ProductManager",
+                            "Architect",
+                            "Engineer",
+                            "Reviewer",
+                            "QaEngineer"
+                        ]
+                    else:
+                        self.roles = {
+                            "ProductManager": ProductManager(),
+                            "Architect": Architect(),
+                            "Engineer": Engineer(),
+                            "QaEngineer": QaEngineer()
+                        }
+                        self.workflow = [
+                            "ProductManager",
+                            "Architect",
+                            "Engineer",
+                            "QaEngineer"
+                        ]
 
         self.context = {}
 
