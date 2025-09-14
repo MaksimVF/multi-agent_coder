@@ -11,12 +11,328 @@
 
 
 import os
-import subprocess
-from typing import Dict, Any, List
+import json
+import requests
+from typing import Dict, Any, List, Optional
 from .base_role import BaseRole
 
 class GitIntegrator(BaseRole):
     """Enhanced Git Integrator role - handles comprehensive Git operations, CI/CD integration, and tool integrations"""
+
+    def __init__(self, github_token: Optional[str] = None, repo_owner: Optional[str] = None, repo_name: Optional[str] = None):
+        super().__init__()
+        self.github_token = github_token or os.getenv('GITHUB_TOKEN')
+        self.repo_owner = repo_owner
+        self.repo_name = repo_name
+        self.api_url = f"https://api.github.com/repos/{self.repo_owner}/{self.repo_name}"
+        self.headers = {
+            "Authorization": f"token {self.github_token}",
+            "Accept": "application/vnd.github.v3+json"
+        }
+
+    def create_issue(self, title: str, body: str, labels: Optional[List[str]] = None) -> Dict:
+        """Create a GitHub issue"""
+        payload = {
+            "title": title,
+            "body": body,
+            "labels": labels or []
+        }
+
+        response = requests.post(
+            f"{self.api_url}/issues",
+            headers=self.headers,
+            data=json.dumps(payload)
+        )
+
+        if response.status_code == 201:
+            return response.json()
+        else:
+            raise Exception(f"Failed to create issue: {response.text}")
+
+    def update_issue(self, issue_number: int, title: Optional[str] = None, body: Optional[str] = None, state: Optional[str] = None) -> Dict:
+        """Update a GitHub issue"""
+        payload = {}
+        if title:
+            payload["title"] = title
+        if body:
+            payload["body"] = body
+        if state:
+            payload["state"] = state
+
+        response = requests.patch(
+            f"{self.api_url}/issues/{issue_number}",
+            headers=self.headers,
+            data=json.dumps(payload)
+        )
+
+        if response.status_code == 200:
+            return response.json()
+        else:
+            raise Exception(f"Failed to update issue: {response.text}")
+
+    def create_pull_request(self, title: str, body: str, head: str, base: str) -> Dict:
+        """Create a GitHub pull request"""
+        payload = {
+            "title": title,
+            "body": body,
+            "head": head,
+            "base": base
+        }
+
+        response = requests.post(
+            f"{self.api_url}/pulls",
+            headers=self.headers,
+            data=json.dumps(payload)
+        )
+
+        if response.status_code == 201:
+            return response.json()
+        else:
+            raise Exception(f"Failed to create pull request: {response.text}")
+
+    def update_pull_request(self, pr_number: int, title: Optional[str] = None, body: Optional[str] = None) -> Dict:
+        """Update a GitHub pull request"""
+        payload = {}
+        if title:
+            payload["title"] = title
+        if body:
+            payload["body"] = body
+
+        response = requests.patch(
+            f"{self.api_url}/pulls/{pr_number}",
+            headers=self.headers,
+            data=json.dumps(payload)
+        )
+
+        if response.status_code == 200:
+            return response.json()
+        else:
+            raise Exception(f"Failed to update pull request: {response.text}")
+
+    def get_pull_request_status(self, pr_number: int) -> Dict:
+        """Get pull request status"""
+        response = requests.get(
+            f"{self.api_url}/pulls/{pr_number}",
+            headers=self.headers
+        )
+
+        if response.status_code == 200:
+            return response.json()
+        else:
+            raise Exception(f"Failed to get pull request status: {response.text}")
+
+    def get_check_runs(self, pr_number: int) -> List[Dict]:
+        """Get check runs for a pull request"""
+        # Get the head commit SHA
+        pr_info = self.get_pull_request_status(pr_number)
+        head_sha = pr_info["head"]["sha"]
+
+        response = requests.get(
+            f"{self.api_url}/commits/{head_sha}/check-runs",
+            headers=self.headers
+        )
+
+        if response.status_code == 200:
+            return response.json()["check_runs"]
+        else:
+            raise Exception(f"Failed to get check runs: {response.text}")
+
+    def wait_for_checks(self, pr_number: int, timeout: int = 300, interval: int = 10) -> bool:
+        """Wait for CI checks to complete"""
+        import time
+
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            check_runs = self.get_check_runs(pr_number)
+
+            # Check if all runs are completed
+            all_completed = all(run["status"] == "completed" for run in check_runs)
+            if all_completed:
+                return True
+
+            time.sleep(interval)
+
+        return False
+
+    def get_failed_checks(self, pr_number: int) -> List[Dict]:
+        """Get failed check runs"""
+        check_runs = self.get_check_runs(pr_number)
+        return [run for run in check_runs if run["conclusion"] == "failure"]
+
+    def add_label_to_issue(self, issue_number: int, label: str) -> Dict:
+        """Add label to an issue"""
+        response = requests.post(
+            f"{self.api_url}/issues/{issue_number}/labels",
+            headers=self.headers,
+            data=json.dumps({"labels": [label]})
+        )
+
+        if response.status_code == 200:
+            return response.json()
+        else:
+            raise Exception(f"Failed to add label: {response.text}")
+
+    def add_project_card(self, issue_number: int, project_id: int, column_name: str) -> Dict:
+        """Add issue to project board"""
+        # First, get the column ID
+        columns_response = requests.get(
+            f"https://api.github.com/projects/{project_id}/columns",
+            headers=self.headers
+        )
+
+        if columns_response.status_code != 200:
+            raise Exception(f"Failed to get project columns: {columns_response.text}")
+
+        columns = columns_response.json()
+        column = next((col for col in columns if col["name"] == column_name), None)
+
+        if not column:
+            raise Exception(f"Column '{column_name}' not found")
+
+        column_id = column["id"]
+
+        # Create card
+        payload = {
+            "content_id": issue_number,
+            "content_type": "Issue"
+        }
+
+        response = requests.post(
+            f"https://api.github.com/projects/columns/{column_id}/cards",
+            headers=self.headers,
+            data=json.dumps(payload)
+        )
+
+        if response.status_code == 201:
+            return response.json()
+        else:
+            raise Exception(f"Failed to create project card: {response.text}")
+
+    def get_file_content(self, file_path: str, ref: str = "main") -> str:
+        """Get file content from GitHub"""
+        response = requests.get(
+            f"{self.api_url}/contents/{file_path}",
+            headers=self.headers,
+            params={"ref": ref}
+        )
+
+        if response.status_code == 200:
+            return response.json()["content"]
+        else:
+            raise Exception(f"Failed to get file content: {response.text}")
+
+    def update_file(self, file_path: str, content: str, message: str, branch: str, sha: Optional[str] = None) -> Dict:
+        """Update file in GitHub"""
+        payload = {
+            "message": message,
+            "content": content,
+            "branch": branch
+        }
+
+        if sha:
+            payload["sha"] = sha
+
+        response = requests.put(
+            f"{self.api_url}/contents/{file_path}",
+            headers=self.headers,
+            data=json.dumps(payload)
+        )
+
+        if response.status_code == 200:
+            return response.json()
+        else:
+            raise Exception(f"Failed to update file: {response.text}")
+
+    def create_branch(self, branch_name: str, base_branch: str = "main") -> Dict:
+        """Create a new branch"""
+        # Get the base branch reference
+        response = requests.get(
+            f"{self.api_url}/git/refs/heads/{base_branch}",
+            headers=self.headers
+        )
+
+        if response.status_code != 200:
+            raise Exception(f"Failed to get base branch reference: {response.text}")
+
+        base_ref = response.json()
+        base_sha = base_ref["object"]["sha"]
+
+        # Create new branch
+        payload = {
+            "ref": f"refs/heads/{branch_name}",
+            "sha": base_sha
+        }
+
+        response = requests.post(
+            f"{self.api_url}/git/refs",
+            headers=self.headers,
+            data=json.dumps(payload)
+        )
+
+        if response.status_code == 201:
+            return response.json()
+        else:
+            raise Exception(f"Failed to create branch: {response.text}")
+
+    async def run_workflow(self, config: Dict) -> Dict:
+        """Run the GitHub integration workflow"""
+        try:
+            # Example workflow
+            title = config.get("title", "New Feature")
+            body = config.get("body", "This is a new feature")
+            branch = config.get("branch", "feature-branch")
+            file_path = config.get("file_path", "README.md")
+            file_content = config.get("file_content", "# New Feature")
+
+            # Create branch
+            self.create_branch(branch)
+
+            # Update file
+            self.update_file(file_path, file_content, "Add new feature", branch)
+
+            # Create pull request
+            pr = self.create_pull_request(title, body, branch, "main")
+
+            # Wait for CI checks
+            if self.wait_for_checks(pr["number"]):
+                # Get failed checks
+                failed_checks = self.get_failed_checks(pr["number"])
+
+                if failed_checks:
+                    # Create issue for failed tests
+                    issue = self.create_issue(
+                        "CI Tests Failed",
+                        f"Failed tests in PR #{pr['number']}: {failed_checks}",
+                        ["bug", "ci-failure"]
+                    )
+
+                    # Add to project board
+                    self.add_project_card(issue["number"], 1, "In Progress")
+
+                    return {
+                        "status": "failed",
+                        "pr": pr,
+                        "issue": issue,
+                        "failed_checks": failed_checks
+                    }
+                else:
+                    return {
+                        "status": "success",
+                        "pr": pr,
+                        "message": "All tests passed"
+                    }
+            else:
+                return {
+                    "status": "timeout",
+                    "pr": pr,
+                    "message": "CI checks timed out"
+                }
+
+        except Exception as e:
+            return {
+                "status": "error",
+                "error": str(e)
+            }
 
     def __init__(self):
         super().__init__(
@@ -32,6 +348,70 @@ class GitIntegrator(BaseRole):
         project_structure = context.get("project_structure", {})
         code_implementation = context.get("code_implementation", {})
         integration_points = context.get("integration_points", {})
+
+        # GitHub integration
+        github_token = context.get("github_token")
+        repo_owner = context.get("repo_owner")
+        repo_name = context.get("repo_name")
+
+        if github_token and repo_owner and repo_name:
+            # Initialize GitHub integrator
+            github = GitIntegrator(github_token, repo_owner, repo_name)
+
+            # Create branch
+            branch_name = f"feature/{project_name}"
+            github.create_branch(branch_name)
+
+            # Update files
+            for file_path, content in code_implementation.items():
+                github.update_file(file_path, content, f"Add {file_path}", branch_name)
+
+            # Create pull request
+            pr = github.create_pull_request(
+                f"Add {project_name} feature",
+                f"This PR adds the {project_name} feature",
+                branch_name,
+                "main"
+            )
+
+            # Wait for CI checks
+            if github.wait_for_checks(pr["number"]):
+                failed_checks = github.get_failed_checks(pr["number"])
+
+                if failed_checks:
+                    # Create issue for failed tests
+                    issue = github.create_issue(
+                        f"CI Tests Failed for {project_name}",
+                        f"Failed tests in PR #{pr['number']}: {failed_checks}",
+                        ["bug", "ci-failure"]
+                    )
+
+                    # Add to project board
+                    github.add_project_card(issue["number"], 1, "In Progress")
+
+                    return {
+                        "status": "failed",
+                        "pr": pr,
+                        "issue": issue,
+                        "failed_checks": failed_checks
+                    }
+                else:
+                    return {
+                        "status": "success",
+                        "pr": pr,
+                        "message": "All tests passed"
+                    }
+            else:
+                return {
+                    "status": "timeout",
+                    "pr": pr,
+                    "message": "CI checks timed out"
+                }
+
+        return {
+            "status": "skipped",
+            "message": "GitHub integration not configured"
+        }
 
         # Initialize Git repository
         git_status = await self._initialize_git_repo(project_name)
