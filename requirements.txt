@@ -14,5 +14,9 @@ openai>=1.0  # For OpenAI LLM support
 redis>=4.0  # For short-term memory
 weaviate-client>=3.26.7,<4.0.0  # For long-term memory and knowledge base
 
+# Microagent and Markdown dependencies
+pymdown-extensions>=9.0  # For Markdown processing
+pyyaml>=6.0  # For YAML metadata parsing
+
 # Security and Sandbox dependencies
 docker>=6.0  # For Docker sandbox integration

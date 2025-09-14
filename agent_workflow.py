@@ -111,6 +111,7 @@ class AgentWorkflow:
             "status": "initialized",
             "errors": [],
             "task_id": None,
+            "contextual_knowledge": {},
         }
 
         # Set up event subscriptions
@@ -239,10 +240,29 @@ class AgentWorkflow:
             )
 
         try:
-            # Analyze task using dynamic agent discovery
+            # Gather contextual knowledge from microagents
+            if self.memory_manager:
+                task_description = self.state["task"]["description"]
+                contextual_knowledge = self.memory_manager.recall_contextual_knowledge(task_description)
+                self.state["contextual_knowledge"] = contextual_knowledge
+
+                # Store contextual knowledge in memory
+                self.memory_manager.store_short_term(
+                    f"{self.state['task_id']}:contextual_knowledge",
+                    contextual_knowledge,
+                    expiration=86400,
+                    metadata={"type": "contextual_knowledge"},
+                )
+
+            # Analyze task using dynamic agent discovery with contextual knowledge
             analyst = self._get_agent_instance("analyst")
             if analyst:
-                subtasks = await analyst.analyze_task(self.state["task"]["description"])
+                # Enhance the task description with contextual knowledge
+                enhanced_description = self._enhance_with_knowledge(
+                    self.state["task"]["description"],
+                    self.state["contextual_knowledge"]
+                )
+                subtasks = await analyst.analyze_task(enhanced_description)
 
                 # Store analysis results in memory
                 if self.memory_manager:
@@ -467,6 +487,28 @@ class AgentWorkflow:
                     return None
 
         return None
+
+    def _enhance_with_knowledge(self, description: str, contextual_knowledge: Dict) -> str:
+        """Enhance a description with contextual knowledge from microagents."""
+        enhanced = description
+
+        # Add microagent knowledge
+        if contextual_knowledge.get("microagent_knowledge"):
+            knowledge_text = "\n\n".join(
+                f"Knowledge from {k['name']} (triggered by '{k['trigger']}'):\n{k['content']}"
+                for k in contextual_knowledge["microagent_knowledge"]
+            )
+            enhanced += f"\n\nRelevant Knowledge:\n{knowledge_text}"
+
+        # Add repo instructions
+        if contextual_knowledge.get("repo_instructions"):
+            repo_text = "\n\n".join(
+                f"Repository instructions from {r['name']}:\n{r['content']}"
+                for r in contextual_knowledge["repo_instructions"]
+            )
+            enhanced += f"\n\nRepository Instructions:\n{repo_text}"
+
+        return enhanced
 
     def get_status(self) -> Dict:
         """

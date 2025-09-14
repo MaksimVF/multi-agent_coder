@@ -57,6 +57,9 @@ class BaseLLMAgent:
         self.memory = {}
         self.conversation_history = []
 
+        # Microagent knowledge cache
+        self.microagent_cache = {}
+
     def _get_api_key(self) -> Optional[str]:
         """Get API key from environment variables."""
         # Try to get from environment variables
@@ -252,4 +255,94 @@ class BaseLLMAgent:
         if not self.memory_manager:
             return []
         return self.memory_manager.get_recent_memory(self.__class__.__name__, limit, hours)
+
+    def get_microagent_knowledge(self, query: str) -> List[Dict]:
+        """
+        Get relevant microagent knowledge based on a query.
+
+        Args:
+            query: The query to search for relevant knowledge
+
+        Returns:
+            List of relevant microagent knowledge objects
+        """
+        if not self.memory_manager:
+            return []
+
+        # Check cache first
+        if query in self.microagent_cache:
+            return self.microagent_cache[query]
+
+        # Get knowledge from memory manager
+        knowledge = self.memory_manager.find_microagent_knowledge(query)
+
+        # Cache the result
+        self.microagent_cache[query] = knowledge
+
+        return knowledge
+
+    def get_repo_instructions(self) -> List[Dict]:
+        """
+        Get repository instructions from microagents.
+
+        Returns:
+            List of repository instruction objects
+        """
+        if not self.memory_manager:
+            return []
+
+        return self.memory_manager.get_repo_instructions()
+
+    def get_contextual_knowledge(self, query: str) -> Dict:
+        """
+        Get contextual knowledge including microagent knowledge and repo instructions.
+
+        Args:
+            query: The query to search for relevant knowledge
+
+        Returns:
+            Dictionary with microagent knowledge and repo instructions
+        """
+        if not self.memory_manager:
+            return {"microagent_knowledge": [], "repo_instructions": []}
+
+        return self.memory_manager.recall_contextual_knowledge(query)
+
+    async def generate_response_with_knowledge(
+        self, prompt: str, system_message: Optional[str] = None
+    ) -> str:
+        """
+        Generate a response from the LLM with contextual knowledge.
+
+        Args:
+            prompt: Input prompt
+            system_message: Optional system message
+
+        Returns:
+            LLM response text with contextual knowledge
+        """
+        # Get contextual knowledge based on the prompt
+        contextual_knowledge = self.get_contextual_knowledge(prompt)
+
+        # Build enhanced system message with knowledge
+        enhanced_system_message = system_message or ""
+
+        # Add microagent knowledge
+        if contextual_knowledge["microagent_knowledge"]:
+            knowledge_text = "\n\n".join(
+                f"Knowledge from {k['name']} (triggered by '{k['trigger']}'):\n{k['content']}"
+                for k in contextual_knowledge["microagent_knowledge"]
+            )
+            enhanced_system_message += f"\n\nRelevant Knowledge:\n{knowledge_text}"
+
+        # Add repo instructions
+        if contextual_knowledge["repo_instructions"]:
+            repo_text = "\n\n".join(
+                f"Repository instructions from {r['name']}:\n{r['content']}"
+                for r in contextual_knowledge["repo_instructions"]
+            )
+            enhanced_system_message += f"\n\nRepository Instructions:\n{repo_text}"
+
+        # Generate response with enhanced context
+        return await self.generate_response(prompt, enhanced_system_message)
 

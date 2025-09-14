@@ -17,6 +17,8 @@ class MemoryManager:
     - Long-term memory in Weaviate (persistent, semantic search)
     - Knowledge base functionality
     - Memory consolidation and cleanup
+    - Microagent knowledge integration
+    - Contextual recall capabilities
     """
 
     def __init__(
@@ -58,6 +60,11 @@ class MemoryManager:
         except Exception as e:
             print(f"Warning: Could not connect to Weaviate - {e}")
             self.weaviate_client = None
+
+        # Load microagents
+        self.repo_microagents = {}
+        self.knowledge_microagents = {}
+        self._load_microagents()
 
     def _setup_weaviate_schema(self) -> None:
         """Set up Weaviate schema for agent memory."""
@@ -328,6 +335,92 @@ class MemoryManager:
         except Exception as e:
             print(f"Error getting recent memory: {e}")
             return []
+
+    def _load_microagents(self) -> None:
+        """Load microagents from the microagents directory."""
+        try:
+            # Debug: Check current working directory
+            print(f"Current working directory: {os.getcwd()}")
+            print(f"Microagents directory exists: {os.path.exists('microagents')}")
+
+            # Import microagents module
+            from microagents import load_microagents_from_dir, GLOBAL_MICROAGENTS_DIR, USER_MICROAGENTS_DIR
+
+            print(f"GLOBAL_MICROAGENTS_DIR: {GLOBAL_MICROAGENTS_DIR}")
+            print(f"GLOBAL_MICROAGENTS_DIR exists: {os.path.exists(GLOBAL_MICROAGENTS_DIR)}")
+
+            # Load global microagents
+            repo_agents, knowledge_agents = load_microagents_from_dir(GLOBAL_MICROAGENTS_DIR)
+            print(f"Loaded {len(repo_agents)} repo agents and {len(knowledge_agents)} knowledge agents from global dir")
+
+            self.repo_microagents.update(repo_agents)
+            self.knowledge_microagents.update(knowledge_agents)
+
+            # Load user microagents if directory exists
+            if os.path.exists(USER_MICROAGENTS_DIR):
+                repo_agents, knowledge_agents = load_microagents_from_dir(USER_MICROAGENTS_DIR)
+                self.repo_microagents.update(repo_agents)
+                self.knowledge_microagents.update(knowledge_agents)
+
+        except Exception as e:
+            print(f"Warning: Could not load microagents: {e}")
+            import traceback
+            traceback.print_exc()
+
+    def find_microagent_knowledge(self, query: str) -> List[Dict]:
+        """Find microagent knowledge based on a query.
+
+        Args:
+            query: The query to search for microagent triggers
+
+        Returns:
+            A list of matched microagent knowledge objects
+        """
+        recalled_content = []
+
+        # Search for microagent triggers in the query
+        for name, microagent in self.knowledge_microagents.items():
+            trigger = microagent.match_trigger(query)
+            if trigger:
+                recalled_content.append({
+                    "name": microagent.name,
+                    "trigger": trigger,
+                    "content": microagent.content,
+                    "type": "knowledge"
+                })
+
+        return recalled_content
+
+    def get_repo_instructions(self) -> List[Dict]:
+        """Get repository instructions from all repo microagents.
+
+        Returns:
+            A list of repository instruction objects
+        """
+        instructions = []
+
+        for name, microagent in self.repo_microagents.items():
+            instructions.append({
+                "name": microagent.name,
+                "content": microagent.content,
+                "type": "repo"
+            })
+
+        return instructions
+
+    def recall_contextual_knowledge(self, query: str) -> Dict:
+        """Recall contextual knowledge based on a query.
+
+        Args:
+            query: The query to search for relevant knowledge
+
+        Returns:
+            Dictionary with microagent knowledge and repo instructions
+        """
+        return {
+            "microagent_knowledge": self.find_microagent_knowledge(query),
+            "repo_instructions": self.get_repo_instructions()
+        }
 
     def close(self) -> None:
         """Close all connections."""
